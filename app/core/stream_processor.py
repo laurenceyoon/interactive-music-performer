@@ -1,8 +1,10 @@
+import librosa
+import numpy as np
 import pyaudio
 import queue
 from typing import Optional
 
-from ..config import CHUNK_SIZE, SAMPLE_RATE, CHANNELS
+from ..config import CHUNK_SIZE, HOP_LENGTH, SAMPLE_RATE, CHANNELS, N_FFT
 
 
 class StreamProcessor:
@@ -14,11 +16,30 @@ class StreamProcessor:
         self.audio_interface: Optional[pyaudio.PyAudio] = None
         self.audio_stream: Optional[pyaudio.Stream] = None
         self.buffer = queue.Queue()
-        self.data = None
+        self.chroma_buffer = queue.Queue()
+        self.last_chunk = None
         self.is_mic_open = False
 
     def _process_frame(self, data, frame_count, time_into, status_flag):
         self.buffer.put(data)
+
+        query_audio = np.frombuffer(data, dtype=np.float32)
+        query_chroma_stft = librosa.feature.chroma_stft(
+            y=query_audio, hop_length=HOP_LENGTH, n_fft=N_FFT
+        )
+        if self.last_chunk is None:  # first audio chunk is given
+            self.chroma_buffer.put(query_chroma_stft[:, :-1])  # pop last frame converted with zero padding
+        else:
+            override_previous_padding = librosa.feature.chroma_stft(
+                y=np.concatenate(self.last_chunk, query_audio[:HOP_LENGTH]),
+                hop_length=HOP_LENGTH,
+                n_fft=N_FFT,
+            )[:, 1:-1]  # drop first and last frame converted with zero padding
+            accumulated_chroma = np.concatenate((override_previous_padding, query_chroma_stft[:, 1:-1]), axis=1)
+            self.chroma_buffer.put(accumulated_chroma)
+        
+        self.last_chunk = query_audio[query_audio.shape[0] - HOP_LENGTH:]
+
         return (data, pyaudio.paContinue)
 
     def run(self):

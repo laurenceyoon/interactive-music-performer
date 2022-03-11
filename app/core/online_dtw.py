@@ -35,7 +35,6 @@ measures = [
     24.5,
     26.0,
 ]
-from dtw import dtw
 
 
 class OnlineDTW:
