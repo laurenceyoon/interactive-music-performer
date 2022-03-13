@@ -1,7 +1,10 @@
 # interactive-music-performer
-Interactive music performer based on FastAPI & online dynamic time warping (ODTW) algorithm
+Interactive music performer based on FastAPI & online time warping (OLTW) algorithm
 
-```
+```bash
+# create env
+$ conda create --name <env> --file requirements.txt
+
 # rebuild db
 $ sqlite3 ./sql_app.db < initial_data.sql
 

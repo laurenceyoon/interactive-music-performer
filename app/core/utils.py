@@ -7,38 +7,13 @@ import matplotlib.pyplot as plt
 import librosa
 import mido
 import numpy as np
-# from cv2 import AlignExposures
-# from dtw import dtw
 
-from ..config import HOP_LENGTH, SAMPLE_RATE
+from ..config import HOP_LENGTH, N_FFT, SAMPLE_RATE
 from ..models import Piece, Schedule, SubPiece
 from .midiport import midi_port
 from .online_dtw import OnlineDTW
 from .stream_processor import sp
 
-# absolute_measures = OrderedDict(
-#     {
-#         0: 0.0,
-#         1: 0.5,
-#         2: 2.0,
-#         3: 3.5,
-#         4: 5.0,
-#         5: 6.5,
-#         6: 8.0,
-#         7: 9.5,
-#         8: 11.0,
-#         9: 12.5,
-#         10: 14.0,
-#         11: 15.0,
-#         12: 17.0,
-#         13: 18.5,
-#         14: 20.0,
-#         15: 21.5,
-#         16: 23.0,
-#         17: 24.5,
-#         18: 26.0,
-#     }
-# )
 absolute_measures = [
     0.0,
     0.5,
@@ -114,18 +89,16 @@ async def waiter(schedule: Schedule, event: asyncio.Event):
 def follow_piece_with_stream(piece: Piece):
     schedules = piece.schedules
 
-    audio_dir = Path("./../resources/audio/target/")
+    audio_dir = Path("./resources/audio/target/")
     ref_audio_path = audio_dir / f"{Path(piece.path).stem}.wav"
     ref_audio, ref_sr = librosa.load(ref_audio_path.as_posix())
 
-    ref_cens = librosa.feature.chroma_cens(
-        y=ref_audio, sr=ref_sr, hop_length=HOP_LENGTH
-    )
+    ref_stft = librosa.feature.chroma_stft(y=ref_audio, sr=ref_sr, hop_length=HOP_LENGTH, n_fft=N_FFT)
 
-    odtw = OnlineDTW(sp, ref_cens=ref_cens, window_size=2)
+    odtw = OnlineDTW(sp, ref_stft=ref_stft, window_size=1)
     odtw.run()
 
-    query_cqt = librosa.cqt(y=odtw.query_audio, sr=SAMPLE_RATE, hop_length=HOP_LENGTH)
+    query_cqt = librosa.cqt(y=sp.audio_y, sr=SAMPLE_RATE, hop_length=HOP_LENGTH)
     query_cqt_mag = librosa.amplitude_to_db(np.abs(query_cqt))
     ref_cqt = librosa.cqt(y=ref_audio, sr=SAMPLE_RATE, hop_length=HOP_LENGTH)
     ref_cqt_mag = librosa.amplitude_to_db(np.abs(ref_cqt))
@@ -178,7 +151,7 @@ def follow_piece_with_stream(piece: Piece):
 
     ### SECOND PLOT
     print(f"BEFORE SECOND PLOT, warping_path shape: {odtw.warping_path.shape}, 1st: {odtw.warping_path[0]}")
-    print(f"ref cens: {odtw.ref_cens.shape}, query cens: {odtw.query_cens.shape}")
+    print(f"ref cens: {odtw.ref_stft.shape}, query cens: {odtw.query_stft.shape}")
 
     plt.figure(figsize=(11, 5))
 
