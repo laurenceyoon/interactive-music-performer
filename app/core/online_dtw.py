@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from typing import Optional
 
-from ..config import HOP_LENGTH, CHUNK_SIZE, Direction
+from ..config import HOP_LENGTH, CHUNK_SIZE, Direction, N_FFT
 from ..models import Schedule
 from .stream_processor import StreamProcessor
 
@@ -35,18 +35,17 @@ measures = [
 ]
 
 
-class OnlineDTW:
+class OnlineTimeWarping:
     def __init__(
         self,
         sp: StreamProcessor,
-        ref_stft,
+        ref_audio_path,
         window_size,
         max_run_count=30,
         hop_length=HOP_LENGTH,
         verbose=False,
     ):
         self.sp = sp
-        self.ref_stft = ref_stft  # (12, M)
         self.window_size = window_size
         self.max_run_count = max_run_count
         self.hop_length = hop_length
@@ -66,6 +65,13 @@ class OnlineDTW:
         self.warping_path_time = None
         self.cost_matrix = None
         self.iteration = 0
+
+        self.initialize_ref_audio(ref_audio_path)
+
+    def initialize_ref_audio(self, audio_path):
+        audio_y, sr = librosa.load(audio_path)
+        self.ref_audio = audio_y
+        self.ref_stft = librosa.feature.chroma_stft(y=audio_y, sr=sr, hop_length=HOP_LENGTH, n_fft=N_FFT)
 
     def update_path_cost(self, ref_pointer, query_pointer):
         if self.verbose:
@@ -109,7 +115,11 @@ class OnlineDTW:
         return next_direction
 
     def get_new_input(self):
-        query_chroma_stft = self.sp.chroma_buffer.get()
+        qsize = self.sp.chroma_buffer.qsize()
+        if qsize <= 1:
+            query_chroma_stft = self.sp.chroma_buffer.get()
+        else:
+            query_chroma_stft = np.hstack([self.sp.chroma_buffer.get() for _ in range(qsize)])
         self.current_query_stft = query_chroma_stft
         self.time_length = self.current_query_stft.shape[1]
 
@@ -149,3 +159,20 @@ class OnlineDTW:
         end_time = time.time()
         print(f"duration: {end_time - start_time}")
         self.sp.stop()
+    
+    def cleanup(self):
+        self.query_pointer = 0
+        self.ref_pointer = 0
+        self.time_length = 0
+        self.distance = 0
+        self.run_count = 0
+        self.previous_direction = None
+        self.current_query_stft = None  # (12, N)
+        self.query_stft = np.array([])  # (12, n)
+        self.query_audio = np.array([])
+        self.index1s = np.array([])
+        self.index2s = np.array([])
+        self.warping_path = None
+        self.warping_path_time = None
+        self.cost_matrix = None
+        self.iteration = 0

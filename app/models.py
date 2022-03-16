@@ -26,6 +26,9 @@ class SubPiece(Base):
     piece = relationship("Piece", back_populates="subpieces")
     schedules = relationship("Schedule", back_populates="subpiece")
 
+    def __str__(self) -> str:
+        return f"[{self.piece_id}-{self.id}] {self.title}"
+
 
 class Schedule(Base):
     __tablename__ = "schedules"
@@ -43,3 +46,6 @@ class Schedule(Base):
 
     piece = relationship("Piece", back_populates="schedules")
     subpiece = relationship("SubPiece", back_populates="schedules")
+
+    def __str__(self) -> str:
+        return f"[{self.piece_id}-{self.subpiece_id}] {self.player}, {self.start_measure}-{self.end_measure}"

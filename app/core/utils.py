@@ -2,6 +2,7 @@ import asyncio
 import time
 from collections import OrderedDict
 from pathlib import Path
+from matplotlib import interactive
 import matplotlib.pyplot as plt
 
 import librosa
@@ -11,8 +12,10 @@ import numpy as np
 from ..config import HOP_LENGTH, N_FFT, SAMPLE_RATE
 from ..models import Piece, Schedule, SubPiece
 from .midiport import midi_port
-from .online_dtw import OnlineDTW
+from .online_dtw import OnlineTimeWarping
 from .stream_processor import sp
+from .interactive_performer import InteractivePerformer
+from .helper import get_audio_path_from_midi_path, get_midi_from_piece
 
 absolute_measures = [
     0.0,
@@ -35,10 +38,6 @@ absolute_measures = [
     24.5,
     26.0,
 ]
-
-
-def get_midi_from_piece(piece: Piece) -> mido.MidiFile:
-    return mido.MidiFile(piece.path)
 
 
 def play_piece_to_outport(piece: Piece):
@@ -86,25 +85,38 @@ async def waiter(schedule: Schedule, event: asyncio.Event):
     play_piece_to_outport(schedule.subpiece)
 
 
+def lets_play(piece: Piece):
+    ref_audio_path = get_audio_path_from_midi_path(piece.path)
+    oltw = OnlineTimeWarping(
+        sp, ref_audio_path=ref_audio_path.as_posix(), window_size=1
+    )
+    interactive_performer = InteractivePerformer(piece=piece, oltw=oltw)
+    print("let's play")
+    interactive_performer.start_performance()
+
+
 def follow_piece_with_stream(piece: Piece):
+    interactive_performer = InteractivePerformer(piece=piece)
     schedules = piece.schedules
 
-    audio_dir = Path("./resources/audio/target/")
-    ref_audio_path = audio_dir / f"{Path(piece.path).stem}.wav"
-    ref_audio, ref_sr = librosa.load(ref_audio_path.as_posix())
+    ref_audio_path = get_audio_path_from_midi_path(piece.path)
 
-    ref_stft = librosa.feature.chroma_stft(y=ref_audio, sr=ref_sr, hop_length=HOP_LENGTH, n_fft=N_FFT)
-
-    odtw = OnlineDTW(sp, ref_stft=ref_stft, window_size=1)
-    odtw.run()
+    oltw = OnlineTimeWarping(
+        sp, ref_audio_path=ref_audio_path.as_posix(), window_size=1
+    )
+    oltw.run()
 
     query_cqt = librosa.cqt(y=sp.audio_y, sr=SAMPLE_RATE, hop_length=HOP_LENGTH)
     query_cqt_mag = librosa.amplitude_to_db(np.abs(query_cqt))
-    ref_cqt = librosa.cqt(y=ref_audio, sr=SAMPLE_RATE, hop_length=HOP_LENGTH)
+    ref_cqt = librosa.cqt(y=oltw.ref_audio, sr=SAMPLE_RATE, hop_length=HOP_LENGTH)
     ref_cqt_mag = librosa.amplitude_to_db(np.abs(ref_cqt))
 
-    path = np.flip(odtw.warping_path)  # array([query, ref])
+    path = np.flip(oltw.warping_path)  # array([query, ref])
 
+    plot_path(oltw, query_cqt, query_cqt_mag, ref_cqt, ref_cqt_mag, path)
+
+
+def plot_path(odtw, query_cqt, query_cqt_mag, ref_cqt, ref_cqt_mag, path):
     plt.figure(figsize=(9, 8))
 
     # Bottom right plot.
@@ -150,7 +162,9 @@ def follow_piece_with_stream(piece: Piece):
     plt.savefig("F1.png")
 
     ### SECOND PLOT
-    print(f"BEFORE SECOND PLOT, warping_path shape: {odtw.warping_path.shape}, 1st: {odtw.warping_path[0]}")
+    print(
+        f"BEFORE SECOND PLOT, warping_path shape: {odtw.warping_path.shape}, 1st: {odtw.warping_path[0]}"
+    )
     print(f"ref cens: {odtw.ref_stft.shape}, query cens: {odtw.query_stft.shape}")
 
     plt.figure(figsize=(11, 5))

@@ -11,6 +11,7 @@ from .core.utils import (
     play_piece_to_outport,
     close_stream,
     follow_piece_with_stream,
+    lets_play
 )
 from .database import SessionLocal, engine
 
@@ -64,7 +65,8 @@ def play_piece(
 )
 def follow_piece(piece_id: int, db: Session = Depends(get_db)):
     piece = crud.get_piece_by_id(db, piece_id=piece_id)
-    follow_piece_with_stream(piece=piece)
+    lets_play(piece=piece)
+    # follow_piece_with_stream(piece=piece)
     return {"response": f"following title({piece.title})"}
 
 
