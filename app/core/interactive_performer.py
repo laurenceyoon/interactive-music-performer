@@ -32,7 +32,7 @@ class InteractivePerformer:
             after="start_following",
         )
         self.machine.add_transition(
-            trigger="switch",
+            trigger="move_to_next",
             source=["following", "playing"],
             dest="playing",
             unless="is_human_pianist_playing",
@@ -40,7 +40,7 @@ class InteractivePerformer:
             after="start_playing",
         )
         self.machine.add_transition(
-            trigger="switch",
+            trigger="move_to_next",
             source=["playing", "following"],
             dest="following",
             conditions="is_human_pianist_playing",
@@ -64,7 +64,7 @@ class InteractivePerformer:
     def is_human_pianist_playing(self):
         return self.current_player == HUMAN_PLAYER
 
-    def move_to_next(self):
+    def switch(self):
         if not self.schedules:
             print("stop performance!")
             self.stop_performance()
@@ -74,7 +74,7 @@ class InteractivePerformer:
         self.current_player = self.current_schedule.player
         self.current_subpiece: SubPiece = self.current_schedule.subpiece
 
-        self.switch()  # trigger
+        self.move_to_next()  # trigger
 
     def cleanup_following(self):
         print(f"cleanup following!, current subpiece: {self.current_subpiece}")
@@ -93,7 +93,7 @@ class InteractivePerformer:
         time.sleep(duration)
 
         print("switch player!")
-        self.move_to_next()
+        self.switch()
 
     def start_playing(self):
         print(f"start_playing!, current subpiece: {self.current_subpiece}")
@@ -102,4 +102,4 @@ class InteractivePerformer:
         midi_port.send(midi)
         print(f"play {self.current_subpiece} end")
 
-        self.move_to_next()
+        self.switch()
