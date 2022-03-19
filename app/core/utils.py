@@ -38,6 +38,7 @@ absolute_measures = [
     24.5,
     26.0,
 ]
+interactive_performer = None
 
 
 def play_piece_to_outport(piece: Piece):
@@ -85,18 +86,25 @@ async def waiter(schedule: Schedule, event: asyncio.Event):
     play_piece_to_outport(schedule.subpiece)
 
 
-def lets_play(piece: Piece):
+def load_piece_for_interactive_performance(piece: Piece):
+    global interactive_performer
     ref_audio_path = get_audio_path_from_midi_path(piece.path)
     oltw = OnlineTimeWarping(
         sp, ref_audio_path=ref_audio_path.as_posix(), window_size=1
     )
     interactive_performer = InteractivePerformer(piece=piece, oltw=oltw)
-    print("let's play")
+    print(f"loading piece({piece.title}) is done.")
+
+
+def start_interactive_performance(piece: Piece):
+    if piece.id != interactive_performer.piece.id:
+        load_piece_for_interactive_performance(piece)
+
+    print(f"let's play!! {piece.title}")
     interactive_performer.start_performance()
 
 
 def follow_piece_with_stream(piece: Piece):
-    interactive_performer = InteractivePerformer(piece=piece)
     schedules = piece.schedules
 
     ref_audio_path = get_audio_path_from_midi_path(piece.path)

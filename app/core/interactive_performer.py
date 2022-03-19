@@ -5,7 +5,8 @@ import librosa
 from transitions import Machine
 
 from ..config import AI_PLAYER, HUMAN_PLAYER
-from ..models import Piece, SubPiece, Schedule
+from ..models import Piece, SubPiece
+from .dto import Schedule
 from .helper import get_audio_path_from_midi_path, get_midi_from_piece
 from .online_dtw import OnlineTimeWarping
 from .midiport import midi_port
@@ -17,10 +18,13 @@ class InteractivePerformer:
     def __init__(self, piece: Piece, oltw: OnlineTimeWarping):
         self.piece = piece
         self.oltw = oltw
-        self.schedules = deque(piece.schedules)
+        self.schedules = deque(
+            Schedule(player=s.player, subpiece=s.subpiece) for s in piece.schedules
+        )
         self.current_schedule: Schedule = self.schedules.popleft()
         self.current_player = self.current_schedule.player
         self.current_subpiece: SubPiece = self.current_schedule.subpiece
+
         self.machine = Machine(
             model=self, states=InteractivePerformer.states, initial="asleep"
         )

@@ -10,8 +10,8 @@ from .core.utils import (
     all_stop_playing,
     play_piece_to_outport,
     close_stream,
-    follow_piece_with_stream,
-    lets_play
+    load_piece_for_interactive_performance,
+    start_interactive_performance,
 )
 from .database import SessionLocal, engine
 
@@ -59,15 +59,23 @@ def play_piece(
 
 
 @app.get(
-    "/pieces/{piece_id}/follow",
-    status_code=HTTPStatus.ACCEPTED,
+    "/pieces/{piece_id}/perform",
     tags=["Interactive API"],
 )
-def follow_piece(piece_id: int, db: Session = Depends(get_db)):
+def perform_piece(piece_id: int, db: Session = Depends(get_db)):
     piece = crud.get_piece_by_id(db, piece_id=piece_id)
-    lets_play(piece=piece)
-    # follow_piece_with_stream(piece=piece)
+    start_interactive_performance(piece=piece)
     return {"response": f"following title({piece.title})"}
+
+
+@app.get(
+    "/pieces/{piece_id}/load",
+    tags=["Interactive API"],
+)
+def load_piece(piece_id: int, db: Session = Depends(get_db)):
+    piece = crud.get_piece_by_id(db, piece_id=piece_id)
+    load_piece_for_interactive_performance(piece=piece)
+    return {"response": f"loading title({piece.title})"}
 
 
 @app.get("/stop", tags=["Interactive API"])
