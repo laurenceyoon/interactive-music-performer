@@ -60,11 +60,14 @@ def play_piece(
 
 @app.get(
     "/pieces/{piece_id}/perform",
+    status_code=HTTPStatus.ACCEPTED,
     tags=["Interactive API"],
 )
-def perform_piece(piece_id: int, db: Session = Depends(get_db)):
+def perform_piece(
+    piece_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
     piece = crud.get_piece_by_id(db, piece_id=piece_id)
-    start_interactive_performance(piece=piece)
+    background_tasks.add_task(start_interactive_performance, piece=piece)
     return {"response": f"following title({piece.title})"}
 
 

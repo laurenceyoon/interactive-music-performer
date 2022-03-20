@@ -4,7 +4,7 @@ from collections import deque
 import librosa
 from transitions import Machine
 
-from ..config import AI_PLAYER, HUMAN_PLAYER
+from ..config import HUMAN_PLAYER
 from ..models import Piece, SubPiece
 from .dto import Schedule
 from .helper import get_audio_path_from_midi_path, get_midi_from_piece
@@ -61,15 +61,17 @@ class InteractivePerformer:
             trigger="stop_performance",
             source=["following", "playing"],
             dest="asleep",
+            before="force_quit",
         )
         self.current_timestamp = 0
+        self.force_quit_flag = False
         print("initialize end!")
 
     def is_human_pianist_playing(self):
         return self.current_player == HUMAN_PLAYER
 
     def switch(self):
-        if not self.schedules:
+        if not self.schedules or self.force_quit_flag:
             print("stop performance!")
             self.stop_performance()
             return
@@ -85,6 +87,7 @@ class InteractivePerformer:
         self.oltw.cleanup()
 
     def start_following(self):
+        self.force_quit_flag = False
         print(f"start following!, current subpiece: {self.current_subpiece}")
 
         current_subpiece_audio_path = get_audio_path_from_midi_path(
@@ -100,6 +103,7 @@ class InteractivePerformer:
         self.switch()
 
     def start_playing(self):
+        self.force_quit_flag = False
         print(f"start_playing!, current subpiece: {self.current_subpiece}")
         midi = get_midi_from_piece(self.current_subpiece)
         print(f"play {self.current_subpiece} start")
@@ -107,3 +111,14 @@ class InteractivePerformer:
         print(f"play {self.current_subpiece} end")
 
         self.switch()
+
+    def force_quit(self):
+        self.force_quit_flag = True
+        self.cleanup_following()
+        self.schedules = deque(
+            Schedule(player=s.player, subpiece=s.subpiece) for s in self.piece.schedules
+        )
+        self.current_schedule: Schedule = self.schedules.popleft()
+        self.current_player = self.current_schedule.player
+        self.current_subpiece: SubPiece = self.current_schedule.subpiece
+        print("force quit & cleanup completed.")

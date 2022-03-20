@@ -2,7 +2,7 @@ from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from .database import Base
-    
+
 
 class Piece(Base):
     __tablename__ = "pieces"
@@ -27,7 +27,7 @@ class SubPiece(Base):
     schedules = relationship("Schedule", back_populates="subpiece")
 
     def __str__(self) -> str:
-        return f"[{self.piece_id}-{self.id}] {self.title}"
+        return f"{self.title}"
 
 
 class Schedule(Base):
@@ -48,4 +48,4 @@ class Schedule(Base):
     subpiece = relationship("SubPiece", back_populates="schedules")
 
     def __str__(self) -> str:
-        return f"[{self.piece_id}-{self.subpiece_id}] {self.player}, {self.start_measure}-{self.end_measure}"
+        return f"{self.player}, {self.subpiece.title}, {self.start_measure}-{self.end_measure}"

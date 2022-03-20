@@ -51,6 +51,8 @@ def play_piece_to_outport(piece: Piece):
 def all_stop_playing():
     print("############ stop playing MIDI pieces ############")
     midi_port.panic()
+    if interactive_performer is not None:
+        interactive_performer.stop_performance()
 
 
 def play_piece_with_timer(piece: Piece):
@@ -97,7 +99,11 @@ def load_piece_for_interactive_performance(piece: Piece):
 
 
 def start_interactive_performance(piece: Piece):
-    if piece.id != interactive_performer.piece.id:
+    if interactive_performer is None or not (
+        piece.id == interactive_performer.piece.id
+        and len(piece.schedules) - 1 == len(interactive_performer.schedules)
+    ):
+        print(f"load piece({piece.title}) again")
         load_piece_for_interactive_performance(piece)
 
     print(f"let's play!! {piece.title}")
