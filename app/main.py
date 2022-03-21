@@ -59,6 +59,16 @@ def play_piece(
 
 
 @app.get(
+    "/pieces/{piece_id}/load",
+    tags=["Interactive API"],
+)
+def load_piece(piece_id: int, db: Session = Depends(get_db)):
+    piece = crud.get_piece_by_id(db, piece_id=piece_id)
+    load_piece_for_interactive_performance(piece=piece)
+    return {"response": f"loading title({piece.title})"}
+
+
+@app.get(
     "/pieces/{piece_id}/perform",
     status_code=HTTPStatus.ACCEPTED,
     tags=["Interactive API"],
@@ -69,16 +79,6 @@ def perform_piece(
     piece = crud.get_piece_by_id(db, piece_id=piece_id)
     background_tasks.add_task(start_interactive_performance, piece=piece)
     return {"response": f"following title({piece.title})"}
-
-
-@app.get(
-    "/pieces/{piece_id}/load",
-    tags=["Interactive API"],
-)
-def load_piece(piece_id: int, db: Session = Depends(get_db)):
-    piece = crud.get_piece_by_id(db, piece_id=piece_id)
-    load_piece_for_interactive_performance(piece=piece)
-    return {"response": f"loading title({piece.title})"}
 
 
 @app.get("/stop", tags=["Interactive API"])
