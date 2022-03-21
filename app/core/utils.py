@@ -55,20 +55,6 @@ def all_stop_playing():
         interactive_performer.stop_performance()
 
 
-def play_piece_with_timer(piece: Piece):
-    midi = get_midi_from_piece(piece)
-    print(f"Following piece({piece.title}) start...")
-
-    print(f"Awaiting 3 secs before playing...")
-    # await asyncio.sleep(3)
-    time.sleep(3)
-
-    print(f"* Playing piece({piece.title}) start...")
-    midi_port.send(midi)
-
-    print(f"* Playing piece({piece.title}) Ended.")
-
-
 def open_stream():
     print("############ open audio stream ############")
     sp.run()
