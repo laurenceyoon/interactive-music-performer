@@ -21,7 +21,7 @@ models.Base.metadata.create_all(bind=engine)
 #     admin_model=Admin, login_logo_url="https://preview.tabler.io/static/logo.svg"
 # )
 
-app = FastAPI(title="Score Follower For Interactive Performance")
+app = FastAPI(title="Interactive Music Performer")
 # app.mount("/admin", admin_app)
 
 
@@ -32,19 +32,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-@app.get("/test", tags=["Test"])
-def test():
-    print("test API for synchronous request")
-    return {"hello": "world"}
-
-
-@app.get("/async-test", tags=["Test"])
-async def async_test():
-    print("test API for asynchronous request - sleep for 0.1 sec...")
-    await asyncio.sleep(0.1)
-    return {"async hello": "world"}
 
 
 @app.get(
@@ -144,3 +131,16 @@ def read_subpieces(skip: int = 0, limit: int = 100, db: Session = Depends(get_db
 )
 def read_subpiece(subpiece_id: int, db: Session = Depends(get_db)):
     return crud.get_subpiece(db, subpiece_id=subpiece_id)
+
+
+@app.get("/test", tags=["Test"])
+def test():
+    print("test API for synchronous request")
+    return {"hello": "world"}
+
+
+@app.get("/async-test", tags=["Test"])
+async def async_test():
+    print("test API for asynchronous request - sleep for 0.1 sec...")
+    await asyncio.sleep(0.1)
+    return {"async hello": "world"}

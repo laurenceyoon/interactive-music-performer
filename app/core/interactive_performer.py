@@ -59,7 +59,7 @@ class InteractivePerformer:
         )
         self.machine.add_transition(
             trigger="stop_performance",
-            source=["following", "playing"],
+            source=["following", "playing", "asleep"],
             dest="asleep",
             before="force_quit",
         )
