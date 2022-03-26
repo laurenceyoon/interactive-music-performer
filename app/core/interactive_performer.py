@@ -7,7 +7,7 @@ from transitions import Machine
 from ..config import HUMAN_PLAYER
 from ..models import Piece, SubPiece
 from .dto import Schedule
-from .helper import get_audio_path_from_midi_path, get_midi_from_piece
+from .utils import get_audio_path_from_midi_path, get_midi_from_piece
 from .online_dtw import OnlineTimeWarping
 from .midiport import midi_port
 
@@ -65,7 +65,6 @@ class InteractivePerformer:
         )
         self.current_timestamp = 0
         self.force_quit_flag = False
-        print("initialize end!")
 
     def is_human_pianist_playing(self):
         return self.current_player == HUMAN_PLAYER

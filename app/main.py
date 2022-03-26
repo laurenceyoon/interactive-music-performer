@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from . import crud, models, schemas
-from .core.utils import (
+from .core.helpers import (
     all_stop_playing,
     play_piece_to_outport,
     close_stream,
@@ -17,13 +17,8 @@ from .database import SessionLocal, engine
 
 models.Base.metadata.create_all(bind=engine)
 
-# login_provider = UsernamePasswordProvider(
-#     admin_model=Admin, login_logo_url="https://preview.tabler.io/static/logo.svg"
-# )
 
 app = FastAPI(title="Interactive Music Performer")
-# app.mount("/admin", admin_app)
-
 
 # Dependency
 def get_db():
