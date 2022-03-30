@@ -9,11 +9,16 @@ from ..config import CHUNK_SIZE, HOP_LENGTH, SAMPLE_RATE, CHANNELS, N_FFT
 
 
 class StreamProcessor:
-    def __init__(self, sample_rate=SAMPLE_RATE, chunk_size=CHUNK_SIZE, verbose=False):
+    def __init__(
+        self, sample_rate, chunk_size, hop_length, n_fft, verbose=False, query_norm=1
+    ):
         self.chunk_size = chunk_size
         self.channels = CHANNELS
         self.sample_rate = sample_rate
+        self.hop_length = hop_length
+        self.n_fft = n_fft
         self.verbose = verbose
+        self.query_norm = query_norm
         self.format = pyaudio.paFloat32
         self.audio_interface: Optional[pyaudio.PyAudio] = None
         self.audio_stream: Optional[pyaudio.Stream] = None
@@ -21,47 +26,78 @@ class StreamProcessor:
         self.chroma_buffer = queue.Queue()
         self.last_chunk = None
         self.is_mic_open = False
-        self.frame_index = 0
-        self.audio_y = np.array([])
+        self.index = 0
 
-    def _process_frame(self, data, frame_count, time_into, status_flag):
-        self.buffer.put(data)
-        if self.verbose:
-            print(f"[ARRIVED] {self.frame_index}st frame: {time.time()}")
-
-        query_audio = np.frombuffer(data, dtype=np.float32)
-        self.audio_y = np.concatenate((self.audio_y, query_audio)) if self.audio_y.any() else query_audio
-        query_chroma_stft = librosa.feature.chroma_stft(
-            y=query_audio, hop_length=HOP_LENGTH, n_fft=N_FFT
+    def _process_chroma(self, y, time_info=None):
+        y = np.concatenate((self.last_chunk, y)) if self.last_chunk is not None else y
+        query_chroma_stft = (
+            librosa.feature.chroma_stft(  # TODO: center = False 옵션 줘서 해보기
+                y=y,
+                sr=self.sample_rate,
+                hop_length=self.hop_length,
+                n_fft=self.n_fft,
+                norm=self.query_norm,
+            )
         )
-        if self.last_chunk is None:  # first audio chunk is given
-            self.chroma_buffer.put(query_chroma_stft[:, :-1])  # pop last frame converted with zero padding
-        else:
-            override_previous_padding = librosa.feature.chroma_stft(
-                y=np.concatenate((self.last_chunk, query_audio[:HOP_LENGTH])),
-                hop_length=HOP_LENGTH,
-                n_fft=N_FFT,
-            )[:, 1:-1]  # drop first and last frame converted with zero padding
-            accumulated_chroma = np.concatenate((override_previous_padding, query_chroma_stft[:, 1:-1]), axis=1)
-            self.chroma_buffer.put(accumulated_chroma)
-        
-        self.last_chunk = query_audio[query_audio.shape[0] - HOP_LENGTH:]
-        self.frame_index += 1
+        # 첫번째 chunk 는 맨 앞의 padding된 stft frame을 버리지 않음
+        query_chroma_stft = (
+            query_chroma_stft[:, 1:-1]
+            if self.last_chunk is not None
+            else query_chroma_stft[:, :-1]
+        )
+        current_chunk = {
+            "timestamp": time_info if time_info else time.time(),
+            "chroma_stft": query_chroma_stft,
+        }
+        self.chroma_buffer.put(current_chunk)
+        self.last_chunk = y[y.shape[0] - self.hop_length :]
+        self.index += 1
+
+    def _process_frame(self, data, frame_count, time_info, status_flag):
+        if self.verbose:
+            print(f"\nprocess_frame index: {self.index}, frame_count: {frame_count}")
+            print(f"{self.index}st time_info: {time_info}")
+
+        self.buffer.put(data)
+
+        query_audio = np.frombuffer(data, dtype=np.float32)  # initial y
+        self._process_chroma(query_audio, time_info["input_buffer_adc_time"])
+
         return (data, pyaudio.paContinue)
 
-    def run(self):
-        self.audio_interface = pyaudio.PyAudio()
-        self.audio_stream = self.audio_interface.open(
-            format=self.format,
-            channels=self.channels,
-            rate=self.sample_rate,
-            input=True,
-            frames_per_buffer=self.chunk_size,
-            stream_callback=self._process_frame,
+    def mock_stream(self, mock_file=None):
+        filename = (
+            mock_file
+            or "../resources/audio/target/presto_musescore/Haydn_Hob._XVI34_1._Presto.wav"
         )
-        self.is_mic_open = True
-        self.audio_stream.start_stream()
-        print("* Recording in progress....")
+        stream = librosa.stream(
+            filename,
+            block_length=1,
+            frame_length=self.chunk_size,
+            hop_length=self.hop_length,
+        )
+        for y_block in stream:
+            self._process_chroma(y_block)
+
+    def run(self, fake=False, mock_file=None):
+        if fake:
+            print(f"* [Mocking] Loading existing audio file({mock_file})....")
+            self.mock_stream(mock_file)
+            print("* [Mocking] Done.")
+        else:
+            self.audio_interface = pyaudio.PyAudio()
+            self.audio_stream = self.audio_interface.open(
+                format=self.format,
+                channels=self.channels,
+                rate=self.sample_rate,
+                input=True,
+                frames_per_buffer=self.chunk_size,
+                stream_callback=self._process_frame,
+            )
+            self.is_mic_open = True
+            self.audio_stream.start_stream()
+            self.start_time = self.audio_stream.get_time()
+            print("* Recording in progress....")
 
     def stop(self):
         if self.is_mic_open:
@@ -71,5 +107,10 @@ class StreamProcessor:
             self.audio_interface.terminate()
             print("Recording Stopped.")
 
+    def is_open(self):
+        return self.is_mic_open
 
-sp = StreamProcessor()
+
+sp = StreamProcessor(
+    sample_rate=SAMPLE_RATE, chunk_size=CHUNK_SIZE, hop_length=HOP_LENGTH, n_fft=N_FFT
+)
