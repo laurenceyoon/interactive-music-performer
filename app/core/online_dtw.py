@@ -8,8 +8,7 @@ from typing import Optional
 from functools import partial
 import scipy
 
-from ..config import HOP_LENGTH, CHUNK_SIZE, Direction, N_FFT, SAMPLE_RATE
-from ..models import Schedule
+from ..config import HOP_LENGTH, Direction, N_FFT, SAMPLE_RATE
 from .stream_processor import StreamProcessor
 
 matplotlib.use("agg")
@@ -22,9 +21,10 @@ class OnlineTimeWarping:
         sp: StreamProcessor,
         ref_audio_path,
         window_size,
+        hop_length,
         max_run_count=30,
-        hop_length=HOP_LENGTH,
         verbose=False,
+        ref_norm=1,
     ):
         self.sp = sp
         self.ref_audio_file = ref_audio_path
@@ -33,31 +33,21 @@ class OnlineTimeWarping:
         self.hop_length = hop_length
         self.frame_per_seg = int(sp.chunk_size / hop_length)
         self.verbose = verbose
+        self.ref_norm = ref_norm
         self.ref_pointer = 0
-        self.time_length = 0
-        self.distance = 0
+        self.query_pointer = 0
         self.run_count = 0
         self.previous_direction = None
         self.current_query_stft = None  # (12, n)
         self.query_stft = np.zeros((12, MAX_LEN))  # (12, N) stft of total query
-        self.query_audio = np.array([])
-        self.index1s = np.array([])
-        self.index2s = np.array([])
         self.warping_path = []
         self.cost_matrix = None
         self.dist_matrix = None
         self.acc_dist_matrix = None
-        self.acc_len_matrix = None
         self.candidate = None
         self.candi_history = []
+        self.w = self.window_size * self.frame_per_seg
         self.iteration = 0
-        self.acc_direction = None
-        self.cost_matrix_offset = [0, 0]  # (ref, query)
-        self.query_pointer = 0
-        self.w = self.frame_per_seg * self.window_size
-        print(
-            f"self.frame_per_seg: {self.frame_per_seg}, self.w: {self.w}, self.window_size: {self.window_size}"
-        )
 
         self.initialize_ref_audio(ref_audio_path)
 
@@ -76,7 +66,7 @@ class OnlineTimeWarping:
         audio_y, sr = librosa.load(audio_path)
         self.ref_audio = audio_y
         ref_stft = librosa.feature.chroma_stft(
-            y=audio_y, sr=sr, hop_length=HOP_LENGTH, n_fft=N_FFT, norm=1
+            y=audio_y, sr=sr, hop_length=HOP_LENGTH, n_fft=N_FFT, norm=self.ref_norm
         )
         ref_len = ref_stft.shape[1]
         truncated_len = (
@@ -98,32 +88,12 @@ class OnlineTimeWarping:
             print(
                 f"ref_stft_seg: {ref_stft_seg.shape}, query_stft_seg: {query_stft_seg.shape}, dist: {dist.shape}, dist_matrix shape: {self.dist_matrix.shape}"
             )
-        w = self.window_size * self.frame_per_seg
+        w = self.w
         self.dist_matrix[w - dist.shape[0] :, w - dist.shape[1] :] = dist
-
-    def update_dist_matrix(self, direction: Direction):
-        if self.verbose:
-            print(f"update_path_cost with direction: {direction.name}")
-        x = self.ref_pointer
-        y = self.query_pointer
-        w = self.window_size * self.frame_per_seg
-
-        ref_stft_seg = self.ref_stft[:, max(x - w, 0) : x]  # [F, M]
-        query_stft_seg = self.query_stft[:, max(y - w, 0) : y]  # [F, N]
-        dist = scipy.spatial.distance.cdist(ref_stft_seg.T, query_stft_seg.T)
-        if self.verbose:
-            print(
-                f"current pointer: {(x, y)}, ref shape: {ref_stft_seg.shape} query shape: {query_stft_seg.shape}, dist shape: {dist.shape}, dist_matrix shape: {self.dist_matrix.shape}"
-            )
-
-        self.dist_matrix[
-            w - dist.shape[0] :, w - dist.shape[1] :
-        ] = dist  # dist_matrix 끝 점에 맞춰서 항상 업데이트 되도록 함.
 
     def init_matrix(self):
         x = self.ref_pointer
         y = self.query_pointer
-        w = self.w
         d = self.frame_per_seg
         wx = min(self.w, x)
         wy = min(self.w, y)
@@ -131,7 +101,7 @@ class OnlineTimeWarping:
         new_len_acc = np.zeros((wx, wy))
         x_seg = self.ref_stft[:, x - wx : x].T  # [wx, 12]
         y_seg = self.query_stft[:, y - d : y].T  # [d, 12]
-        dist = scipy.spatial.distance.cdist(x_seg, y_seg)  # [wx, d``]
+        dist = scipy.spatial.distance.cdist(x_seg, y_seg)  # [wx, d]
 
         for i in range(wx):
             for j in range(d):
@@ -170,7 +140,6 @@ class OnlineTimeWarping:
         # local cost matrix
         x = self.ref_pointer
         y = self.query_pointer
-        w = self.w
         d = self.frame_per_seg
         wx = min(self.w, x)
         wy = min(self.w, y)
@@ -256,12 +225,6 @@ class OnlineTimeWarping:
         self.acc_dist_matrix = new_acc
         self.acc_len_matrix = new_len_acc
 
-    def calculate_warping_path(self, start, end):
-        """calculate each warping path from start to end point and return distance"""
-        wp = None
-        distance = None
-        return wp, distance
-
     def update_warping_path(self):
         table = self.cost_matrix
         i = self.cost_matrix.shape[0] - 1
@@ -297,7 +260,6 @@ class OnlineTimeWarping:
     def update_path_cost(self, direction):
         self.update_accumulate_matrix(direction)
         self.select_candidate()
-        # self.update_warping_path()
 
     def select_candidate(self):
         norm_x_edge = self.acc_dist_matrix[-1, :] / self.acc_len_matrix[-1, :]
@@ -318,10 +280,13 @@ class OnlineTimeWarping:
 
     def select_next_direction(self):
         if self.run_count > self.max_run_count:
-            if self.previous_direction == Direction.REF:
-                next_direction = Direction.QUERY
-            else:
-                next_direction = Direction.REF
+            next_direction = (
+                Direction.QUERY
+                if self.previous_direction is Direction.REF
+                else Direction.REF
+            )
+            self.save_history()
+            return next_direction
 
         offset = self.offset()
         x0 = offset[0]
@@ -335,10 +300,8 @@ class OnlineTimeWarping:
         self.save_history()
         return next_direction
 
-        # return Direction.BOTH
-
     def get_new_input(self):
-        #  get only one input
+        #  get only one input at a time
         query_chroma_stft = self.sp.chroma_buffer.get()["chroma_stft"]
         self.current_query_stft = query_chroma_stft
         q_length = self.current_query_stft.shape[1]
@@ -352,11 +315,14 @@ class OnlineTimeWarping:
     def _check_run_time(self, start_time, duration):
         return time.time() - start_time < duration
 
+    def _is_still_following(self):
+        return self.ref_pointer <= (self.ref_stft.shape[1] - self.frame_per_seg)
+
     def run(self, fig=None, h=None, hfig=None, duration=None, fake=False):
         self.sp.run(fake)  # mic ON
         start_time = time.time()
 
-        self.ref_pointer += self.window_size * self.frame_per_seg
+        self.ref_pointer += self.w
         self.get_new_input()
         self.init_matrix()
 
@@ -365,13 +331,11 @@ class OnlineTimeWarping:
             if duration is not None
             else self.sp.is_open
         )
-        while run_condition() and self.ref_pointer <= (
-            self.ref_stft.shape[1] - self.frame_per_seg
-        ):
+        while run_condition() and self._is_still_following():
             if self.iteration % 10 == 1:
                 print(f"[iter: {self.iteration}] history: {self.candi_history[-1]}")
                 print(
-                    f"ref_pointer: {self.ref_pointer}, query_pointer: {self.query_pointer}"
+                    f"[ref endpoint: {self.ref_stft.shape[1]}] ref_pointer: {self.ref_pointer}, query_pointer: {self.query_pointer}"
                 )
             if self.verbose:
                 print(f"\niteration: {self.iteration}")
@@ -390,13 +354,12 @@ class OnlineTimeWarping:
             else:
                 self.run_count = 1
 
-            # if direction is not Direction.BOTH:
             self.previous_direction = direction
             self.iteration += 1
 
             if duration is None:
                 duration = int(librosa.get_duration(filename=self.ref_audio_file)) + 1
-            if fig and h and hfig:
+            if h and hfig and fig:
                 h.set_data(
                     self.query_stft[:, : int(SAMPLE_RATE / HOP_LENGTH) * duration]
                 )
@@ -416,9 +379,6 @@ class OnlineTimeWarping:
         self.current_query_stft = None  # (12, N)
         self.query_stft = np.array([])  # (12, n)
         self.query_audio = np.array([])
-        self.index1s = np.array([])
-        self.index2s = np.array([])
         self.warping_path = None
-        self.warping_path_time = None
         self.cost_matrix = None
         self.iteration = 0

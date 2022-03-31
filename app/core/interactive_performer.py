@@ -17,9 +17,8 @@ from ..config import HOP_LENGTH, SAMPLE_RATE
 class InteractivePerformer:
     states = ["asleep", "following", "playing"]
 
-    def __init__(self, piece: Piece, odtw: OnlineTimeWarping):
+    def __init__(self, piece: Piece):
         self.piece = piece
-        self.odtw = odtw
         self.schedules = deque(
             Schedule(player=s.player, subpiece=s.subpiece) for s in piece.schedules
         )
@@ -94,13 +93,13 @@ class InteractivePerformer:
         current_subpiece_audio_path = get_audio_path_from_midi_path(
             self.current_subpiece.path
         )
-        duration = librosa.get_duration(filename=current_subpiece_audio_path)
+        # duration = librosa.get_duration(filename=current_subpiece_audio_path)
 
         # replace alignment
         self.odtw = OnlineTimeWarping(
             sp,
             ref_audio_path=current_subpiece_audio_path.as_posix(),
-            window_size=int(SAMPLE_RATE / HOP_LENGTH / 2),
+            window_size=int(SAMPLE_RATE / HOP_LENGTH) - 1,
             hop_length=HOP_LENGTH,
             verbose=False,
         )

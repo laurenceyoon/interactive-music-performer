@@ -77,15 +77,7 @@ async def waiter(schedule: Schedule, event: asyncio.Event):
 def load_piece_for_interactive_performance(piece: Piece):
     start = time.time()
     global interactive_performer
-    ref_audio_path = get_audio_path_from_midi_path(piece.path)
-    odtw = OnlineTimeWarping(
-        sp,
-        ref_audio_path=ref_audio_path.as_posix(),
-        window_size=int(SAMPLE_RATE / HOP_LENGTH),
-        hop_length=HOP_LENGTH,
-        verbose=False,
-    )
-    interactive_performer = InteractivePerformer(piece=piece, odtw=odtw)
+    interactive_performer = InteractivePerformer(piece=piece)
     print(
         f"Loading piece({piece.title}) is done in {time.time() - start} sec. Title: {piece.title}"
     )
