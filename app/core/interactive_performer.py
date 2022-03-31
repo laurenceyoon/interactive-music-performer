@@ -10,14 +10,16 @@ from .dto import Schedule
 from .utils import get_audio_path_from_midi_path, get_midi_from_piece
 from .online_dtw import OnlineTimeWarping
 from .midiport import midi_port
+from .stream_processor import sp
+from ..config import HOP_LENGTH, SAMPLE_RATE
 
 
 class InteractivePerformer:
     states = ["asleep", "following", "playing"]
 
-    def __init__(self, piece: Piece, oltw: OnlineTimeWarping):
+    def __init__(self, piece: Piece, odtw: OnlineTimeWarping):
         self.piece = piece
-        self.oltw = oltw
+        self.odtw = odtw
         self.schedules = deque(
             Schedule(player=s.player, subpiece=s.subpiece) for s in piece.schedules
         )
@@ -83,7 +85,7 @@ class InteractivePerformer:
 
     def cleanup_following(self):
         print(f"cleanup following!, current subpiece: {self.current_subpiece}")
-        self.oltw.cleanup()
+        self.odtw.cleanup()
 
     def start_following(self):
         self.force_quit_flag = False
@@ -95,8 +97,15 @@ class InteractivePerformer:
         duration = librosa.get_duration(filename=current_subpiece_audio_path)
 
         # replace alignment
-        # self.oltw.run()
-        time.sleep(duration)
+        self.odtw = OnlineTimeWarping(
+            sp,
+            ref_audio_path=current_subpiece_audio_path.as_posix(),
+            window_size=int(SAMPLE_RATE / HOP_LENGTH / 2),
+            hop_length=HOP_LENGTH,
+            verbose=False,
+        )
+        self.odtw.run()
+        # time.sleep(duration)
 
         print("switch player!")
         self.switch()

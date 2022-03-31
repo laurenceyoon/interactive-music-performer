@@ -13,28 +13,6 @@ from ..models import Schedule
 from .stream_processor import StreamProcessor
 
 matplotlib.use("agg")
-
-measures = [
-    0.0,
-    0.5,
-    2.0,
-    3.5,
-    5.0,
-    6.5,
-    8.0,
-    9.5,
-    11.0,
-    12.5,
-    14.0,
-    15.0,
-    17.0,
-    18.5,
-    20.0,
-    21.5,
-    23.0,
-    24.5,
-    26.0,
-]
 MAX_LEN = int(1e4)
 
 
@@ -46,7 +24,7 @@ class OnlineTimeWarping:
         window_size,
         max_run_count=30,
         hop_length=HOP_LENGTH,
-        verbose=True,
+        verbose=False,
     ):
         self.sp = sp
         self.ref_audio_file = ref_audio_path
@@ -77,6 +55,9 @@ class OnlineTimeWarping:
         self.cost_matrix_offset = [0, 0]  # (ref, query)
         self.query_pointer = 0
         self.w = self.frame_per_seg * self.window_size
+        print(
+            f"self.frame_per_seg: {self.frame_per_seg}, self.w: {self.w}, self.window_size: {self.window_size}"
+        )
 
         self.initialize_ref_audio(ref_audio_path)
 
@@ -387,6 +368,11 @@ class OnlineTimeWarping:
         while run_condition() and self.ref_pointer <= (
             self.ref_stft.shape[1] - self.frame_per_seg
         ):
+            if self.iteration % 10 == 1:
+                print(f"[iter: {self.iteration}] history: {self.candi_history[-1]}")
+                print(
+                    f"ref_pointer: {self.ref_pointer}, query_pointer: {self.query_pointer}"
+                )
             if self.verbose:
                 print(f"\niteration: {self.iteration}")
             direction = self.select_next_direction()
@@ -411,8 +397,9 @@ class OnlineTimeWarping:
             if duration is None:
                 duration = int(librosa.get_duration(filename=self.ref_audio_file)) + 1
             if fig and h and hfig:
-                h.set_data(self.query_stft[:, : int(SAMPLE_RATE / HOP_LENGTH) * duration])
-                #             clear_output(wait=True)
+                h.set_data(
+                    self.query_stft[:, : int(SAMPLE_RATE / HOP_LENGTH) * duration]
+                )
                 hfig.update(fig)
 
         end_time = time.time()
