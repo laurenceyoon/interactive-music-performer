@@ -24,7 +24,7 @@ class OnlineTimeWarping:
         hop_length,
         max_run_count=30,
         verbose=False,
-        ref_norm=1,
+        ref_norm=None,
     ):
         self.sp = sp
         self.ref_audio_file = ref_audio_path
@@ -70,6 +70,7 @@ class OnlineTimeWarping:
             (ref_len - 1) // self.frame_per_seg
         ) * self.frame_per_seg  # initialize_ref_audio 에서 ref_stft 길이가 frame_per_seg (4) 로 나눠지게 마지막을 버림
         self.ref_stft = ref_stft[:, :truncated_len]
+        self.ref_stft = np.log(self.ref_stft * 10 + 1) / 8
 
         self.global_cost_matrix = np.zeros(
             (self.ref_stft.shape[1] * 2, self.ref_stft.shape[1] * 2)
@@ -119,7 +120,7 @@ class OnlineTimeWarping:
                     compares = [
                         new_acc[i - 1, update_y0 + j],
                         new_acc[i, update_y0 + j - 1],
-                        new_acc[i - 1, update_y0 + j - 1],
+                        new_acc[i - 1, update_y0 + j - 1] * 0.98,
                     ]
                     len_compares = [
                         new_len_acc[i - 1, update_y0 + j],
@@ -166,7 +167,7 @@ class OnlineTimeWarping:
                         compares = [
                             new_acc[update_x0 + i - 1, j],
                             new_acc[update_x0 + i, j - 1],
-                            new_acc[update_x0 + i - 1, j - 1],
+                            new_acc[update_x0 + i - 1, j - 1] * 0.98,
                         ]
                         len_compares = [
                             new_len_acc[update_x0 + i - 1, j],
@@ -205,7 +206,7 @@ class OnlineTimeWarping:
                         compares = [
                             new_acc[i - 1, update_y0 + j],
                             new_acc[i, update_y0 + j - 1],
-                            new_acc[i - 1, update_y0 + j - 1],
+                            new_acc[i - 1, update_y0 + j - 1] * 0.98,
                         ]
                         len_compares = [
                             new_len_acc[i - 1, update_y0 + j],
@@ -276,24 +277,23 @@ class OnlineTimeWarping:
         self.candi_history.append(offset + self.candidate)
 
     def select_next_direction(self):
-        if self.run_count > self.max_run_count:
+        if self.query_pointer <= self.w:
+            next_direction = Direction.QUERY
+        elif self.run_count > self.max_run_count:
             next_direction = (
                 Direction.QUERY
                 if self.previous_direction is Direction.REF
                 else Direction.REF
             )
-            self.save_history()
-            return next_direction
-
-        offset = self.offset()
-        x0 = offset[0]
-        y0 = offset[1]
-        if self.candidate[0] == self.ref_pointer - x0:
-            # ref direction
-            next_direction = Direction.REF
         else:
-            assert self.candidate[1] == self.query_pointer - y0
-            next_direction = Direction.QUERY
+            offset = self.offset()
+            x0 = offset[0]
+            y0 = offset[1]
+            if self.candidate[0] == self.ref_pointer - x0:
+                next_direction = Direction.REF
+            else:
+                assert self.candidate[1] == self.query_pointer - y0
+                next_direction = Direction.QUERY
         self.save_history()
         return next_direction
 
@@ -315,8 +315,8 @@ class OnlineTimeWarping:
     def _is_still_following(self):
         return self.ref_pointer <= (self.ref_stft.shape[1] - self.frame_per_seg)
 
-    def run(self, fig=None, h=None, hfig=None, duration=None, fake=False):
-        self.sp.run(fake)  # mic ON
+    def run(self, fig=None, h=None, hfig=None, duration=None, mock=False):
+        self.sp.run(mock=mock)  # mic ON
         start_time = time.time()
 
         self.ref_pointer += self.w

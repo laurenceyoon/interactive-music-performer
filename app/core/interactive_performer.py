@@ -103,8 +103,11 @@ class InteractivePerformer:
             window_size=FRAME_RATE * 3,  # window size: 3 sec
             hop_length=HOP_LENGTH,
             verbose=False,
+            max_run_count=3,
+            ref_norm=None,
         )
         self.odtw.run()
+        time.sleep(0.3)
 
         print("switch player!\n")
         self.switch()

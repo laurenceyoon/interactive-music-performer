@@ -10,7 +10,7 @@ from ..config import CHUNK_SIZE, HOP_LENGTH, SAMPLE_RATE, CHANNELS, N_FFT
 
 class StreamProcessor:
     def __init__(
-        self, sample_rate, chunk_size, hop_length, n_fft, verbose=False, query_norm=1
+        self, sample_rate, chunk_size, hop_length, n_fft, verbose=False, query_norm=None
     ):
         self.chunk_size = chunk_size
         self.channels = CHANNELS
@@ -45,6 +45,7 @@ class StreamProcessor:
             if self.last_chunk is not None
             else query_chroma_stft[:, :-1]
         )
+        query_chroma_stft = np.log(query_chroma_stft * 5 + 1) / 20
         current_chunk = {
             "timestamp": time_info if time_info else time.time(),
             "chroma_stft": query_chroma_stft,
@@ -72,15 +73,16 @@ class StreamProcessor:
         )
         stream = librosa.stream(
             filename,
-            block_length=1,
+            block_length=int(self.chunk_size / self.hop_length),
             frame_length=self.chunk_size,
             hop_length=self.hop_length,
         )
         for y_block in stream:
+            print(f"y_block.shape: {y_block.shape}")
             self._process_chroma(y_block)
 
-    def run(self, fake=False, mock_file=None):
-        if fake:
+    def run(self, mock=False, mock_file=None):
+        if mock:
             print(f"* [Mocking] Loading existing audio file({mock_file})....")
             self.mock_stream(mock_file)
             print("* [Mocking] Done.")
@@ -112,5 +114,9 @@ class StreamProcessor:
 
 
 sp = StreamProcessor(
-    sample_rate=SAMPLE_RATE, chunk_size=CHUNK_SIZE, hop_length=HOP_LENGTH, n_fft=N_FFT
+    sample_rate=SAMPLE_RATE,
+    chunk_size=CHUNK_SIZE,
+    hop_length=HOP_LENGTH,
+    n_fft=N_FFT,
+    query_norm=None,
 )
