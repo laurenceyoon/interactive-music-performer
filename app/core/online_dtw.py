@@ -8,7 +8,7 @@ from typing import Optional
 from functools import partial
 import scipy
 
-from ..config import HOP_LENGTH, Direction, N_FFT, SAMPLE_RATE
+from ..config import HOP_LENGTH, Direction, N_FFT, SAMPLE_RATE, FRAME_RATE
 from .stream_processor import StreamProcessor
 
 matplotlib.use("agg")
@@ -28,7 +28,7 @@ class OnlineTimeWarping:
     ):
         self.sp = sp
         self.ref_audio_file = ref_audio_path
-        self.window_size = window_size
+        self.w = window_size  # * self.frame_per_seg
         self.max_run_count = max_run_count
         self.hop_length = hop_length
         self.frame_per_seg = int(sp.chunk_size / hop_length)
@@ -40,13 +40,10 @@ class OnlineTimeWarping:
         self.previous_direction = None
         self.current_query_stft = None  # (12, n)
         self.query_stft = np.zeros((12, MAX_LEN))  # (12, N) stft of total query
-        self.warping_path = []
-        self.cost_matrix = None
         self.dist_matrix = None
         self.acc_dist_matrix = None
         self.candidate = None
         self.candi_history = []
-        self.w = self.window_size * self.frame_per_seg
         self.iteration = 0
 
         self.initialize_ref_audio(ref_audio_path)
@@ -225,37 +222,37 @@ class OnlineTimeWarping:
         self.acc_dist_matrix = new_acc
         self.acc_len_matrix = new_len_acc
 
-    def update_warping_path(self):
-        table = self.cost_matrix
-        i = self.cost_matrix.shape[0] - 1
-        j = (
-            self.cost_matrix.shape[1] - 1
-        )  # start = (i, j), end = (ref_until, query_until)
+    # def update_warping_path(self):
+    #     table = self.cost_matrix
+    #     i = self.cost_matrix.shape[0] - 1
+    #     j = (
+    #         self.cost_matrix.shape[1] - 1
+    #     )  # start = (i, j), end = (ref_until, query_until)
 
-        ref_until = 0
-        query_until = 0
+    #     ref_until = 0
+    #     query_until = 0
 
-        offset = self.offset()
-        if offset[0] < 0 or offset[1] < 0:
-            ref_until = max(i - self.ref_pointer, 0)
-            query_until = max(j - self.query_pointer, 0)
+    #     offset = self.offset()
+    #     if offset[0] < 0 or offset[1] < 0:
+    #         ref_until = max(i - self.ref_pointer, 0)
+    #         query_until = max(j - self.query_pointer, 0)
 
-        path = [(i, j)]
-        while i > ref_until or j > query_until:
-            minval = np.inf
-            if table[i - 1, j] < minval:
-                minval = table[i - 1, j]
-                step = (i - 1, j)
-            if table[i][j - 1] < minval:
-                minval = table[i, j - 1]
-                step = (i, j - 1)
-            if table[i - 1][j - 1] < minval:
-                minval = table[i - 1, j - 1]
-                step = (i - 1, j - 1)
-            path.insert(0, step)
-            i, j = step
-        path += offset
-        self.warping_path.extend(path)
+    #     path = [(i, j)]
+    #     while i > ref_until or j > query_until:
+    #         minval = np.inf
+    #         if table[i - 1, j] < minval:
+    #             minval = table[i - 1, j]
+    #             step = (i - 1, j)
+    #         if table[i][j - 1] < minval:
+    #             minval = table[i, j - 1]
+    #             step = (i, j - 1)
+    #         if table[i - 1][j - 1] < minval:
+    #             minval = table[i - 1, j - 1]
+    #             step = (i - 1, j - 1)
+    #         path.insert(0, step)
+    #         i, j = step
+    #     path += offset
+    #     self.warping_path.extend(path)
 
     def update_path_cost(self, direction):
         self.update_accumulate_matrix(direction)
@@ -360,9 +357,7 @@ class OnlineTimeWarping:
             if duration is None:
                 duration = int(librosa.get_duration(filename=self.ref_audio_file)) + 1
             if h and hfig and fig:
-                h.set_data(
-                    self.query_stft[:, : int(SAMPLE_RATE / HOP_LENGTH) * duration]
-                )
+                h.set_data(self.query_stft[:, : FRAME_RATE * duration])
                 hfig.update(fig)
 
         end_time = time.time()

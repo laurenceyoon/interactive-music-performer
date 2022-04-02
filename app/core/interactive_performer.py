@@ -11,7 +11,7 @@ from .utils import get_audio_path_from_midi_path, get_midi_from_piece
 from .online_dtw import OnlineTimeWarping
 from .midiport import midi_port
 from .stream_processor import sp
-from ..config import HOP_LENGTH, SAMPLE_RATE
+from ..config import HOP_LENGTH, SAMPLE_RATE, FRAME_RATE
 
 
 class InteractivePerformer:
@@ -94,19 +94,19 @@ class InteractivePerformer:
             self.current_subpiece.path
         )
         # duration = librosa.get_duration(filename=current_subpiece_audio_path)
+        # time.sleep(duration)
 
         # replace alignment
         self.odtw = OnlineTimeWarping(
             sp,
             ref_audio_path=current_subpiece_audio_path.as_posix(),
-            window_size=int(SAMPLE_RATE / HOP_LENGTH) - 1,
+            window_size=FRAME_RATE * 3,  # window size: 3 sec
             hop_length=HOP_LENGTH,
             verbose=False,
         )
         self.odtw.run()
-        # time.sleep(duration)
 
-        print("switch player!")
+        print("switch player!\n")
         self.switch()
 
     def start_playing(self):
