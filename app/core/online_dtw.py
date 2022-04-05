@@ -53,12 +53,6 @@ class OnlineTimeWarping:
         offset_y = max(self.query_pointer - self.w, 0)
         return np.array([offset_x, offset_y])
 
-    def local_to_global_index(self, coord):
-        return coord + self.offset()
-
-    def global_to_local_index(self, coord):
-        return coord - self.offset()
-
     def initialize_ref_audio(self, audio_path):
         audio_y, sr = librosa.load(audio_path)
         self.ref_audio = audio_y
@@ -71,7 +65,7 @@ class OnlineTimeWarping:
         ) * self.frame_per_seg  # initialize_ref_audio 에서 ref_stft 길이가 frame_per_seg (4) 로 나눠지게 마지막을 버림
         self.ref_stft = ref_stft[:, :truncated_len]
         self.ref_stft = np.log(self.ref_stft * 10 + 1) / 8
-        self.ref_total_length = self.ref_stft.shape[1]
+        self.ref_total_length = ref_len
 
         self.global_cost_matrix = np.zeros(
             (self.ref_total_length * 2, self.ref_total_length * 2)
@@ -82,8 +76,7 @@ class OnlineTimeWarping:
         ref_stft_seg = self.ref_stft[:, : self.ref_pointer]  # [F, M]
         query_stft_seg = self.query_stft[:, : self.query_pointer]  # [F, N]
         dist = scipy.spatial.distance.cdist(ref_stft_seg.T, query_stft_seg.T)
-        w = self.w
-        self.dist_matrix[self.w - dist.shape[0] :, w - dist.shape[1] :] = dist
+        self.dist_matrix[self.w - dist.shape[0] :, self.w - dist.shape[1] :] = dist
 
     def init_matrix(self):
         x = self.ref_pointer
@@ -140,7 +133,7 @@ class OnlineTimeWarping:
         new_acc = np.zeros((wx, wy))
         new_len_acc = np.zeros((wx, wy))
 
-        if direction == Direction.REF:
+        if direction is Direction.REF:
             new_acc[:-d, :] = self.acc_dist_matrix[d:]
             new_len_acc[:-d, :] = self.acc_len_matrix[d:]
             x_seg = self.ref_stft[:, x - d : x].T  # [d, 12]
@@ -178,7 +171,7 @@ class OnlineTimeWarping:
                             1 + len_compares[local_direction]
                         )
 
-        elif direction == Direction.QUERY:
+        elif direction is Direction.QUERY:
             overlap_y = wy - d
             new_acc[:, :-d] = self.acc_dist_matrix[:, -overlap_y:]
             new_len_acc[:, :-d] = self.acc_len_matrix[:, -overlap_y:]
@@ -290,7 +283,6 @@ class OnlineTimeWarping:
             else:
                 assert self.candidate[1] == self.query_pointer - y0
                 next_direction = Direction.QUERY
-        self.save_history()
         return next_direction
 
     def get_new_input(self):
@@ -327,6 +319,7 @@ class OnlineTimeWarping:
                 print(
                     f"[{self.ref_pointer}/{self.ref_total_length}, {int(self.ref_pointer/self.ref_total_length*100)}%] ref: {self.ref_pointer}, query: {self.query_pointer}"
                 )
+            self.save_history()
             direction = self.select_next_direction()
 
             if direction is Direction.QUERY:
