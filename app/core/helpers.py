@@ -78,9 +78,6 @@ def load_piece_for_interactive_performance(piece: Piece):
     start = time.time()
     global interactive_performer
     interactive_performer = InteractivePerformer(piece=piece)
-    print(
-        f"Loading piece({piece.title}) is done in {time.time() - start} sec. Title: {piece.title}"
-    )
 
 
 def start_interactive_performance(piece: Piece):
@@ -88,10 +85,9 @@ def start_interactive_performance(piece: Piece):
         piece.id == interactive_performer.piece.id
         and len(piece.schedules) - 1 == len(interactive_performer.schedules)
     ):
-        print(f"load piece({piece.title}) again")
         load_piece_for_interactive_performance(piece)
 
-    print(f"let's play!! {piece.title}")
+    print(f"\n🎹 Let's play! {piece.title} 🎹")
     interactive_performer.start_performance()
 
 

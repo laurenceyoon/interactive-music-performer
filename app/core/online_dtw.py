@@ -71,9 +71,10 @@ class OnlineTimeWarping:
         ) * self.frame_per_seg  # initialize_ref_audio 에서 ref_stft 길이가 frame_per_seg (4) 로 나눠지게 마지막을 버림
         self.ref_stft = ref_stft[:, :truncated_len]
         self.ref_stft = np.log(self.ref_stft * 10 + 1) / 8
+        self.ref_total_length = self.ref_stft.shape[1]
 
         self.global_cost_matrix = np.zeros(
-            (self.ref_stft.shape[1] * 2, self.ref_stft.shape[1] * 2)
+            (self.ref_total_length * 2, self.ref_total_length * 2)
         )
 
     def init_dist_matrix(self):
@@ -81,13 +82,8 @@ class OnlineTimeWarping:
         ref_stft_seg = self.ref_stft[:, : self.ref_pointer]  # [F, M]
         query_stft_seg = self.query_stft[:, : self.query_pointer]  # [F, N]
         dist = scipy.spatial.distance.cdist(ref_stft_seg.T, query_stft_seg.T)
-
-        if self.verbose:
-            print(
-                f"ref_stft_seg: {ref_stft_seg.shape}, query_stft_seg: {query_stft_seg.shape}, dist: {dist.shape}, dist_matrix shape: {self.dist_matrix.shape}"
-            )
         w = self.w
-        self.dist_matrix[w - dist.shape[0] :, w - dist.shape[1] :] = dist
+        self.dist_matrix[self.w - dist.shape[0] :, w - dist.shape[1] :] = dist
 
     def init_matrix(self):
         x = self.ref_pointer
@@ -306,14 +302,12 @@ class OnlineTimeWarping:
             :, self.query_pointer : self.query_pointer + q_length
         ] = query_chroma_stft
         self.query_pointer += q_length
-        if self.verbose:
-            print(f"updated q_index: {self.query_pointer}, q_length: {q_length}")
 
     def _check_run_time(self, start_time, duration):
         return time.time() - start_time < duration
 
     def _is_still_following(self):
-        return self.ref_pointer <= (self.ref_stft.shape[1] - self.frame_per_seg)
+        return self.ref_pointer <= (self.ref_total_length - self.frame_per_seg)
 
     def run(self, fig=None, h=None, hfig=None, duration=None, mock=False):
         self.sp.run(mock=mock)  # mic ON
@@ -330,12 +324,9 @@ class OnlineTimeWarping:
         )
         while run_condition() and self._is_still_following():
             if self.iteration % 10 == 1:
-                print(f"[iter: {self.iteration}] history: {self.candi_history[-1]}")
                 print(
-                    f"[ref endpoint: {self.ref_stft.shape[1]}] ref_pointer: {self.ref_pointer}, query_pointer: {self.query_pointer}"
+                    f"[{self.ref_pointer}/{self.ref_total_length}, {int(self.ref_pointer/self.ref_total_length*100)}%] ref: {self.ref_pointer}, query: {self.query_pointer}"
                 )
-            if self.verbose:
-                print(f"\niteration: {self.iteration}")
             direction = self.select_next_direction()
 
             if direction is Direction.QUERY:
@@ -363,17 +354,3 @@ class OnlineTimeWarping:
         end_time = time.time()
         print(f"duration: {end_time - start_time}")
         self.sp.stop()
-
-    def cleanup(self):
-        self.query_pointer = 0
-        self.ref_pointer = 0
-        self.time_length = 0
-        self.distance = 0
-        self.run_count = 0
-        self.previous_direction = None
-        self.current_query_stft = None  # (12, N)
-        self.query_stft = np.array([])  # (12, n)
-        self.query_audio = np.array([])
-        self.warping_path = None
-        self.cost_matrix = None
-        self.iteration = 0

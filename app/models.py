@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String, Float
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -22,6 +22,7 @@ class SubPiece(Base):
     title = Column(String)
     path = Column(String)
     piece_id = Column(Integer, ForeignKey("pieces.id"))
+    etr = Column(Float, default=0)  # estimated time remaining (sec.)
 
     piece = relationship("Piece", back_populates="subpieces")
     schedules = relationship("Schedule", back_populates="subpiece")

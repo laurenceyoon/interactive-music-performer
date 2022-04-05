@@ -83,8 +83,7 @@ class InteractivePerformer:
         self.move_to_next()  # trigger
 
     def cleanup_following(self):
-        print(f"cleanup following!, current subpiece: {self.current_subpiece}")
-        self.odtw.cleanup()
+        self.odtw = None
 
     def start_following(self):
         self.force_quit_flag = False
@@ -93,8 +92,6 @@ class InteractivePerformer:
         current_subpiece_audio_path = get_audio_path_from_midi_path(
             self.current_subpiece.path
         )
-        # duration = librosa.get_duration(filename=current_subpiece_audio_path)
-        # time.sleep(duration)
 
         # replace alignment
         self.odtw = OnlineTimeWarping(
@@ -107,9 +104,11 @@ class InteractivePerformer:
             ref_norm=None,
         )
         self.odtw.run()
-        time.sleep(0.3)
 
-        print("switch player!\n")
+        estimated_time_remaining = max(self.current_subpiece.etr - 0.7, 0)
+        time.sleep(estimated_time_remaining)  # sleep for estimated time remaining
+
+        print("🎹 switch player! 🎹\n")
         self.switch()
 
     def start_playing(self):
@@ -131,4 +130,4 @@ class InteractivePerformer:
         self.current_schedule: Schedule = self.schedules.popleft()
         self.current_player = self.current_schedule.player
         self.current_subpiece: SubPiece = self.current_schedule.subpiece
-        print("force quit & cleanup completed.")
+        print("Quit & cleanup completed.")

@@ -33,6 +33,7 @@ class SubPieceCreate(SubPieceBase):
 class SubPiece(SubPieceBase):
     id: int
     piece_id: int
+    etr: float
 
     class Config:
         orm_mode = True
