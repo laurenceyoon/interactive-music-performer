@@ -65,7 +65,7 @@ class OnlineTimeWarping:
         ) * self.frame_per_seg  # initialize_ref_audio 에서 ref_stft 길이가 frame_per_seg (4) 로 나눠지게 마지막을 버림
         self.ref_stft = ref_stft[:, :truncated_len]
         self.ref_stft = np.log(self.ref_stft * 10 + 1) / 8
-        self.ref_total_length = ref_len
+        self.ref_total_length = self.ref_stft.shape[1]
 
         self.global_cost_matrix = np.zeros(
             (self.ref_total_length * 2, self.ref_total_length * 2)
