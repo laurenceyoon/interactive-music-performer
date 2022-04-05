@@ -1,27 +1,24 @@
-PRAGMA foreign_keys=OFF;
-BEGIN TRANSACTION;
-CREATE TABLE alembic_version (
-	version_num VARCHAR(32) NOT NULL, 
-	CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
-);
-CREATE TABLE pieces (
-	id INTEGER NOT NULL, 
-	title VARCHAR, 
-	path VARCHAR, 
-	PRIMARY KEY (id)
-);
-INSERT INTO pieces VALUES(1,'Haydn_Sonata_Hob._XVI37_Mov._1_D_Major','./resources/midi/full/Haydn_Sonata_Hob._XVI37_Mov._1_D_Major.mid');
+"""initial data migration
+
+Revision ID: b0d8fe0babc9
+Revises: a56462c1c1d3
+Create Date: 2022-04-05 13:10:34.484971
+
+"""
+import sqlalchemy as sa
+from alembic import op
+from sqlalchemy import create_engine
+from sqlalchemy.sql import text
+
+SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
+
+INSERT_ROWS = """INSERT INTO pieces VALUES(1,'Haydn_Sonata_Hob._XVI37_Mov._1_D_Major','./resources/midi/full/Haydn_Sonata_Hob._XVI37_Mov._1_D_Major.mid');
 INSERT INTO pieces VALUES(2,'cmaj','./resources/midi/full/cmaj.mid');
 INSERT INTO pieces VALUES(3,'Happy_Birthday_To_You_C_Major','./resources/midi/full/Happy_Birthday_To_You_C_Major.mid');
 INSERT INTO pieces VALUES(4,'Haydn_Hob._XVI34_1._Presto','./resources/midi/full/Haydn_Hob._XVI34_1._Presto.mid');
-CREATE TABLE subpieces (
-	id INTEGER NOT NULL, 
-	title VARCHAR, 
-	path VARCHAR, 
-	piece_id INTEGER, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(piece_id) REFERENCES pieces (id)
-);
 INSERT INTO subpieces VALUES(1,'Happy_Birthday_To_You_C_Major-Part2','./resources/midi/subpieces/Happy_Birthday_To_You_C_Major-Part2.mid',3,0);
 INSERT INTO subpieces VALUES(2,'Haydn_Hob.XVI34_1-1','./resources/midi/subpieces/Haydn_Hob.XVI34_1-1.mid',4,0);
 INSERT INTO subpieces VALUES(3,'Haydn_Hob.XVI34_1-2','./resources/midi/subpieces/Haydn_Hob.XVI34_1-2.mid',4,0);
@@ -42,17 +39,6 @@ INSERT INTO subpieces VALUES(17,'Haydn_Hob.XVI34_1-16','./resources/midi/subpiec
 INSERT INTO subpieces VALUES(18,'Haydn_Hob.XVI34_1-17','./resources/midi/subpieces/Haydn_Hob.XVI34_1-17.mid',4,0);
 INSERT INTO subpieces VALUES(19,'Haydn_Hob.XVI34_1-18','./resources/midi/subpieces/Haydn_Hob.XVI34_1-18.mid',4,0);
 INSERT INTO subpieces VALUES(20,'Haydn_Hob.XVI34_1-19','./resources/midi/subpieces/Haydn_Hob.XVI34_1-19.mid',4,0);
-CREATE TABLE schedules (
-	id INTEGER NOT NULL, 
-	start_measure INTEGER, 
-	end_measure INTEGER, 
-	player VARCHAR, 
-	piece_id INTEGER, 
-	subpiece_id INTEGER, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(piece_id) REFERENCES pieces (id), 
-	FOREIGN KEY(subpiece_id) REFERENCES subpieces (id)
-);
 INSERT INTO schedules VALUES(1,0,9,'Pianist',3,NULL);
 INSERT INTO schedules VALUES(2,10,18,'VirtuosoNet',3,1);
 INSERT INTO schedules VALUES(3,1,8,'Pianist',4,2);
@@ -74,10 +60,21 @@ INSERT INTO schedules VALUES(18,222,227,'VirtuosoNet',4,17);
 INSERT INTO schedules VALUES(19,228,235,'Pianist',4,18);
 INSERT INTO schedules VALUES(20,236,240,'VirtuosoNet',4,19);
 INSERT INTO schedules VALUES(21,241,254,'Pianist',4,20);
-CREATE INDEX ix_pieces_title ON pieces (title);
-CREATE INDEX ix_pieces_id ON pieces (id);
-CREATE INDEX ix_subpieces_id ON subpieces (id);
-CREATE INDEX ix_schedules_id ON schedules (id);
-CREATE INDEX ix_schedules_end_measure ON schedules (end_measure);
-CREATE INDEX ix_schedules_start_measure ON schedules (start_measure);
-COMMIT;
+""".split()
+
+# revision identifiers, used by Alembic.
+revision = "b0d8fe0babc9"
+down_revision = "a56462c1c1d3"
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    # add initial data
+    with engine.connect() as con:
+        for insert in INSERT_ROWS:
+            con.execute(text(insert))
+
+
+def downgrade():
+    pass
