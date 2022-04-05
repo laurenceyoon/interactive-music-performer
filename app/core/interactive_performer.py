@@ -118,6 +118,7 @@ class InteractivePerformer:
         print(f"play {self.current_subpiece} start")
         midi_port.send(midi)
         print(f"play {self.current_subpiece} end")
+        midi_port.panic()
 
         self.switch()
 

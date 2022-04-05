@@ -70,6 +70,19 @@ def stop_all_tasks():
     return {"response": "all stop playing & recording"}
 
 
+@app.get(
+    "/subpieces/{subpiece_id}/play",
+    status_code=HTTPStatus.ACCEPTED,
+    tags=["Interactive API"],
+)
+def play_subpiece(
+    subpiece_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
+    db_subpiece = crud.get_subpiece(db, subpiece_id)
+    background_tasks.add_task(play_piece_to_outport, piece=db_subpiece)
+    return {"response": f"playing title({db_subpiece}) on the background"}
+
+
 @app.post("/pieces", response_model=schemas.Piece, tags=["Basic API"])
 def create_piece(piece: schemas.PieceCreate, db: Session = Depends(get_db)):
     return crud.create_piece(db=db, piece=piece)
