@@ -40,14 +40,14 @@ def play_piece(
     return {"response": f"playing title({db_piece.title}) on the background"}
 
 
-@app.get(
-    "/pieces/{piece_id}/load",
-    tags=["Interactive API"],
-)
-def load_piece(piece_id: int, db: Session = Depends(get_db)):
-    piece = crud.get_piece_by_id(db, piece_id=piece_id)
-    load_piece_for_interactive_performance(piece=piece)
-    return {"response": f"loading title({piece.title})"}
+# @app.get(
+#     "/pieces/{piece_id}/load",
+#     tags=["Interactive API"],
+# )
+# def load_piece(piece_id: int, db: Session = Depends(get_db)):
+#     piece = crud.get_piece_by_id(db, piece_id=piece_id)
+#     load_piece_for_interactive_performance(piece=piece)
+#     return {"response": f"loading title({piece.title})"}
 
 
 @app.get(

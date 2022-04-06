@@ -108,7 +108,7 @@ class InteractivePerformer:
         estimated_time_remaining = max(self.current_subpiece.etr - 0.7, 0)
         time.sleep(estimated_time_remaining)  # sleep for estimated time remaining
 
-        print("🎹 switch player! 🎹\n")
+        print("\n🎹 switch player to Pianist 👩 🎹")
         self.switch()
 
     def start_playing(self):
@@ -120,6 +120,7 @@ class InteractivePerformer:
         print(f"play {self.current_subpiece} end")
         midi_port.panic()
 
+        print("\n🎹 switch player to VirtuosoNet 🤖 🎹")
         self.switch()
 
     def force_quit(self):

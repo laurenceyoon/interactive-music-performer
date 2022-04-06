@@ -75,7 +75,6 @@ async def waiter(schedule: Schedule, event: asyncio.Event):
 
 
 def load_piece_for_interactive_performance(piece: Piece):
-    start = time.time()
     global interactive_performer
     interactive_performer = InteractivePerformer(piece=piece)
 
