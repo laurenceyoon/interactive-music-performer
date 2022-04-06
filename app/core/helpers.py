@@ -74,18 +74,13 @@ async def waiter(schedule: Schedule, event: asyncio.Event):
     play_piece_to_outport(schedule.subpiece)
 
 
-def load_piece_for_interactive_performance(piece: Piece):
+def load_piece_for_interactive_performance(piece: Piece, start_from=1):
     global interactive_performer
-    interactive_performer = InteractivePerformer(piece=piece)
+    interactive_performer = InteractivePerformer(piece=piece, start_from=start_from)
 
 
-def start_interactive_performance(piece: Piece):
-    if interactive_performer is None or not (
-        piece.id == interactive_performer.piece.id
-        and len(piece.schedules) - 1 == len(interactive_performer.schedules)
-    ):
-        load_piece_for_interactive_performance(piece)
-
+def start_interactive_performance(piece: Piece, start_from=1):
+    load_piece_for_interactive_performance(piece, start_from)
     print(f"\n🎹 Let's play! {piece.title} 🎹")
     interactive_performer.start_performance()
 

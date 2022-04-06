@@ -17,11 +17,13 @@ from ..config import HOP_LENGTH, SAMPLE_RATE, FRAME_RATE
 class InteractivePerformer:
     states = ["asleep", "following", "playing"]
 
-    def __init__(self, piece: Piece):
+    def __init__(self, piece: Piece, start_from=1):
         self.piece = piece
         self.schedules = deque(
             Schedule(player=s.player, subpiece=s.subpiece) for s in piece.schedules
         )
+        for _ in range(start_from - 1):
+            self.schedules.popleft()
         self.current_schedule: Schedule = self.schedules.popleft()
         self.current_player = self.current_schedule.player
         self.current_subpiece: SubPiece = self.current_schedule.subpiece

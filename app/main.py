@@ -56,10 +56,15 @@ def play_piece(
     tags=["Interactive API"],
 )
 def perform_piece(
-    piece_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+    piece_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    start_from=1,
 ):
     piece = crud.get_piece_by_id(db, piece_id=piece_id)
-    background_tasks.add_task(start_interactive_performance, piece=piece)
+    background_tasks.add_task(
+        start_interactive_performance, piece=piece, start_from=int(start_from)
+    )
     return {"response": f"following title({piece.title})"}
 
 
