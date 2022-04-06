@@ -99,7 +99,8 @@ class StreamProcessor:
             self.is_mic_open = True
             self.audio_stream.start_stream()
             self.start_time = self.audio_stream.get_time()
-            print("* Recording in progress....")
+            if self.verbose:
+                print("* Recording in progress....")
 
     def stop(self):
         if self.is_mic_open:
@@ -107,7 +108,8 @@ class StreamProcessor:
             self.audio_stream.close()
             self.is_mic_open = False
             self.audio_interface.terminate()
-            print("Recording Stopped.")
+            if self.verbose:
+                print("Recording Stopped.")
 
     def is_open(self):
         return self.is_mic_open

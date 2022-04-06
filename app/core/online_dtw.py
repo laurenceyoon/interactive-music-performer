@@ -7,6 +7,7 @@ import matplotlib
 from typing import Optional
 from functools import partial
 import scipy
+from tqdm import tqdm
 
 from ..config import HOP_LENGTH, Direction, N_FFT, SAMPLE_RATE, FRAME_RATE
 from .stream_processor import StreamProcessor
@@ -43,7 +44,7 @@ class OnlineTimeWarping:
         self.dist_matrix = None
         self.acc_dist_matrix = None
         self.candidate = None
-        self.candi_history = []
+        self.candi_history = [[0, 0]]
         self.iteration = 0
 
         self.initialize_ref_audio(ref_audio_path)
@@ -302,12 +303,15 @@ class OnlineTimeWarping:
         return self.ref_pointer <= (self.ref_total_length - self.frame_per_seg)
 
     def run(self, fig=None, h=None, hfig=None, duration=None, mock=False):
+        pbar = tqdm(total=self.ref_total_length)
         self.sp.run(mock=mock)  # mic ON
         start_time = time.time()
 
         self.ref_pointer += self.w
         self.get_new_input()
         self.init_matrix()
+        # pbar.update(self.candi_history[-1][0])
+        last_ref_checkpoint = 0
 
         run_condition = (
             partial(self._check_run_time, start_time, duration)
@@ -315,10 +319,11 @@ class OnlineTimeWarping:
             else self.sp.is_open
         )
         while run_condition() and self._is_still_following():
-            if self.iteration % 10 == 1:
-                print(
-                    f"[{self.ref_pointer}/{self.ref_total_length}, {int(self.ref_pointer/self.ref_total_length*100)}%] ref: {self.ref_pointer}, query: {self.query_pointer}"
-                )
+            pbar.update(self.candi_history[-1][0] - last_ref_checkpoint)
+            pbar.set_description(
+                f"[{self.ref_pointer}/{self.ref_total_length}, {int(self.ref_pointer/self.ref_total_length*100)}%] ref: {self.ref_pointer}, query: {self.query_pointer}"
+            )
+            last_ref_checkpoint = self.candi_history[-1][0]
             self.save_history()
             direction = self.select_next_direction()
 
@@ -344,6 +349,10 @@ class OnlineTimeWarping:
                 h.set_data(self.query_stft[:, : FRAME_RATE * duration])
                 hfig.update(fig)
 
-        end_time = time.time()
-        print(f"duration: {end_time - start_time}")
+        pbar.set_description(
+            f"[{self.ref_pointer}/{self.ref_total_length}, {int(self.ref_pointer/self.ref_total_length*100)}%] ref: {self.ref_pointer}, query: {self.query_pointer}"
+        )
+        pbar.update(
+            self.candi_history[-1][0] - last_ref_checkpoint + self.frame_per_seg
+        )
         self.sp.stop()

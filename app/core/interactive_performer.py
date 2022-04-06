@@ -24,6 +24,7 @@ class InteractivePerformer:
         )
         for _ in range(start_from - 1):
             self.schedules.popleft()
+        print(f"length of total schedules: {len(self.schedules)}")
         self.current_schedule: Schedule = self.schedules.popleft()
         self.current_player = self.current_schedule.player
         self.current_subpiece: SubPiece = self.current_schedule.subpiece
@@ -88,6 +89,7 @@ class InteractivePerformer:
         self.odtw = None
 
     def start_following(self):
+        print(f"remaining schedules count: {len(self.schedules)}")
         self.force_quit_flag = False
         print(f"start following!, current subpiece: {self.current_subpiece}")
 
@@ -96,6 +98,7 @@ class InteractivePerformer:
         )
 
         # replace alignment
+        start_time = time.time()
         self.odtw = OnlineTimeWarping(
             sp,
             ref_audio_path=current_subpiece_audio_path.as_posix(),
@@ -106,6 +109,7 @@ class InteractivePerformer:
             ref_norm=None,
         )
         self.odtw.run()
+        print(f"duration: {time.time() - start_time}")
 
         estimated_time_remaining = max(self.current_subpiece.etr - 0.7, 0)
         time.sleep(estimated_time_remaining)  # sleep for estimated time remaining
@@ -114,6 +118,7 @@ class InteractivePerformer:
         self.switch()
 
     def start_playing(self):
+        print(f"remaining schedules count: {len(self.schedules)}")
         self.force_quit_flag = False
         print(f"start_playing!, current subpiece: {self.current_subpiece}")
         midi = get_midi_from_piece(self.current_subpiece)
