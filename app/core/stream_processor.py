@@ -45,7 +45,7 @@ class StreamProcessor:
             if self.last_chunk is not None
             else query_chroma_stft[:, :-1]
         )
-        query_chroma_stft = np.log(query_chroma_stft * 5 + 1) / 10
+        query_chroma_stft = np.log(query_chroma_stft * 5 + 1) / 5
         current_chunk = {
             "timestamp": time_info if time_info else time.time(),
             "chroma_stft": query_chroma_stft,
