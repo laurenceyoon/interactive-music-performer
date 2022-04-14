@@ -19,6 +19,7 @@ class MidiPort:
         self.is_running = True
 
         # start playing
+        midi.ticks_per_beat = 240
         for msg in midi.play():
             if self.is_running:
                 self.outport.send(msg)
