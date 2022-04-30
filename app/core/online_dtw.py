@@ -4,7 +4,6 @@ import librosa.display
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
-from typing import Optional
 from functools import partial
 import scipy
 from tqdm import tqdm
@@ -46,6 +45,7 @@ class OnlineTimeWarping:
         self.candidate = None
         self.candi_history = [[0, 0]]
         self.iteration = 0
+        self.is_running = True
 
         self.initialize_ref_audio(ref_audio_path)
 
@@ -213,38 +213,6 @@ class OnlineTimeWarping:
         self.acc_dist_matrix = new_acc
         self.acc_len_matrix = new_len_acc
 
-    # def update_warping_path(self):
-    #     table = self.cost_matrix
-    #     i = self.cost_matrix.shape[0] - 1
-    #     j = (
-    #         self.cost_matrix.shape[1] - 1
-    #     )  # start = (i, j), end = (ref_until, query_until)
-
-    #     ref_until = 0
-    #     query_until = 0
-
-    #     offset = self.offset()
-    #     if offset[0] < 0 or offset[1] < 0:
-    #         ref_until = max(i - self.ref_pointer, 0)
-    #         query_until = max(j - self.query_pointer, 0)
-
-    #     path = [(i, j)]
-    #     while i > ref_until or j > query_until:
-    #         minval = np.inf
-    #         if table[i - 1, j] < minval:
-    #             minval = table[i - 1, j]
-    #             step = (i - 1, j)
-    #         if table[i][j - 1] < minval:
-    #             minval = table[i, j - 1]
-    #             step = (i, j - 1)
-    #         if table[i - 1][j - 1] < minval:
-    #             minval = table[i - 1, j - 1]
-    #             step = (i - 1, j - 1)
-    #         path.insert(0, step)
-    #         i, j = step
-    #     path += offset
-    #     self.warping_path.extend(path)
-
     def update_path_cost(self, direction):
         self.update_accumulate_matrix(direction)
         self.select_candidate()
@@ -318,10 +286,10 @@ class OnlineTimeWarping:
             if duration is not None
             else self.sp.is_open
         )
-        while run_condition() and self._is_still_following():
+        while self.is_running and run_condition() and self._is_still_following():
             pbar.update(self.candi_history[-1][0] - last_ref_checkpoint)
             pbar.set_description(
-                f"[{self.ref_pointer}/{self.ref_total_length}, {int(self.ref_pointer/self.ref_total_length*100)}%] ref: {self.ref_pointer}, query: {self.query_pointer}"
+                f"[{self.ref_pointer}/{self.ref_total_length}] ref: {self.ref_pointer}, query: {self.query_pointer}"
             )
             last_ref_checkpoint = self.candi_history[-1][0]
             self.save_history()
@@ -349,10 +317,15 @@ class OnlineTimeWarping:
                 h.set_data(self.query_stft[:, : FRAME_RATE * duration])
                 hfig.update(fig)
 
-        pbar.set_description(
-            f"[{self.ref_pointer}/{self.ref_total_length}, {int(self.ref_pointer/self.ref_total_length*100)}%] ref: {self.ref_pointer}, query: {self.query_pointer}"
-        )
-        pbar.update(
-            self.candi_history[-1][0] - last_ref_checkpoint + self.frame_per_seg
-        )
+        if self.is_running:
+            pbar.set_description(
+                f"[{self.ref_pointer}/{self.ref_total_length}, {int(self.ref_pointer/self.ref_total_length*100)}%] ref: {self.ref_pointer}, query: {self.query_pointer}"
+            )
+            pbar.update(
+                self.candi_history[-1][0] - last_ref_checkpoint + self.frame_per_seg
+            )
+            self.sp.stop()
+
+    def stop(self):
+        self.is_running = False
         self.sp.stop()

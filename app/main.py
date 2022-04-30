@@ -10,8 +10,8 @@ from .core.helpers import (
     all_stop_playing,
     play_piece_to_outport,
     close_stream,
-    load_piece_for_interactive_performance,
     start_interactive_performance,
+    get_current_state,
 )
 from .database import SessionLocal, engine
 
@@ -38,16 +38,6 @@ def play_piece(
     db_piece = crud.get_piece_by_id(db, piece_id=piece_id)
     background_tasks.add_task(play_piece_to_outport, piece=db_piece)
     return {"response": f"playing title({db_piece.title}) on the background"}
-
-
-# @app.get(
-#     "/pieces/{piece_id}/load",
-#     tags=["Interactive API"],
-# )
-# def load_piece(piece_id: int, db: Session = Depends(get_db)):
-#     piece = crud.get_piece_by_id(db, piece_id=piece_id)
-#     load_piece_for_interactive_performance(piece=piece)
-#     return {"response": f"loading title({piece.title})"}
 
 
 @app.get(
@@ -86,6 +76,11 @@ def play_subpiece(
     db_subpiece = crud.get_subpiece(db, subpiece_id)
     background_tasks.add_task(play_piece_to_outport, piece=db_subpiece)
     return {"response": f"playing title({db_subpiece}) on the background"}
+
+
+@app.get("/current-state", tags=["Basic API"])
+def current_state():
+    return get_current_state()
 
 
 @app.post("/pieces", response_model=schemas.Piece, tags=["Basic API"])

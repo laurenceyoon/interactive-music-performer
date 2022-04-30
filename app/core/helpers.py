@@ -49,7 +49,7 @@ def play_piece_to_outport(piece: Piece):
 
 
 def all_stop_playing():
-    print("############ stop playing MIDI pieces ############")
+    print("############ all stop playing ############")
     midi_port.panic()
     if interactive_performer is not None:
         interactive_performer.stop_performance()
@@ -85,24 +85,12 @@ def start_interactive_performance(piece: Piece, start_from=1):
     interactive_performer.start_performance()
 
 
-def follow_piece_with_stream(piece: Piece):
-    schedules = piece.schedules
-
-    ref_audio_path = get_audio_path_from_midi_path(piece.path)
-
-    oltw = OnlineTimeWarping(
-        sp, ref_audio_path=ref_audio_path.as_posix(), window_size=1
+def get_current_state():
+    return (
+        interactive_performer.state
+        if interactive_performer is not None
+        else "Not Initialized"
     )
-    oltw.run()
-
-    query_cqt = librosa.cqt(y=sp.audio_y, sr=SAMPLE_RATE, hop_length=HOP_LENGTH)
-    query_cqt_mag = librosa.amplitude_to_db(np.abs(query_cqt))
-    ref_cqt = librosa.cqt(y=oltw.ref_audio, sr=SAMPLE_RATE, hop_length=HOP_LENGTH)
-    ref_cqt_mag = librosa.amplitude_to_db(np.abs(ref_cqt))
-
-    path = np.flip(oltw.warping_path)  # array([query, ref])
-
-    plot_path(oltw, query_cqt, query_cqt_mag, ref_cqt, ref_cqt_mag, path)
 
 
 def plot_path(odtw, query_cqt, query_cqt_mag, ref_cqt, ref_cqt_mag, path):

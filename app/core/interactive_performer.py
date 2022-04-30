@@ -75,7 +75,7 @@ class InteractivePerformer:
 
     def switch(self):
         if not self.schedules or self.force_quit_flag:
-            print("stop performance!")
+            print(f"stop performance! force quit: {self.force_quit_flag}")
             self.stop_performance()
             return
 
@@ -86,6 +86,8 @@ class InteractivePerformer:
         self.move_to_next()  # trigger
 
     def cleanup_following(self):
+        if self.odtw is not None:
+            self.odtw.stop()
         self.odtw = None
 
     def start_following(self):
@@ -93,7 +95,6 @@ class InteractivePerformer:
         print(f"remaining schedules count: {len(self.schedules)}")
         self.force_quit_flag = False
         print(f"start following!, current subpiece: {self.current_subpiece}")
-
         current_subpiece_audio_path = get_audio_path_from_midi_path(
             self.current_subpiece.path
         )
@@ -110,12 +111,11 @@ class InteractivePerformer:
         )
         start_time = time.time()
         self.odtw.run()
-
-        estimated_time_remaining = max(self.current_subpiece.etr - 0.7, 0)
-        time.sleep(estimated_time_remaining)  # sleep for estimated time remaining
-
-        print(f"duration: {time.time() - start_time}")
-        self.switch()
+        if not self.force_quit_flag:
+            estimated_time_remaining = max(self.current_subpiece.etr - 0.7, 0)
+            time.sleep(estimated_time_remaining)  # sleep for estimated time remaining
+            print(f"duration: {time.time() - start_time}")
+            self.switch()
 
     def start_playing(self):
         print("\n🎹 switch player to VirtuosoNet 🤖 🎹")
@@ -135,10 +135,4 @@ class InteractivePerformer:
     def force_quit(self):
         self.force_quit_flag = True
         self.cleanup_following()
-        self.schedules = deque(
-            Schedule(player=s.player, subpiece=s.subpiece) for s in self.piece.schedules
-        )
-        self.current_schedule: Schedule = self.schedules.popleft()
-        self.current_player = self.current_schedule.player
-        self.current_subpiece: SubPiece = self.current_schedule.subpiece
         print("Quit & cleanup completed.")
