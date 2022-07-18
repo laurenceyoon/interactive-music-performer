@@ -12,6 +12,7 @@ from .core.helpers import (
     close_stream,
     start_interactive_performance,
     get_current_state,
+    set_playback_speed,
 )
 from .database import SessionLocal, engine
 
@@ -63,6 +64,12 @@ def stop_all_tasks():
     all_stop_playing()
     close_stream()
     return {"response": "all stop playing & recording"}
+
+
+@app.get("/speed", status_code=HTTPStatus.ACCEPTED, tags=["Interactive API"])
+def set_speed(speed: float = 1):
+    set_playback_speed(speed)
+    return {"response": f"set playback speed to {speed}"}
 
 
 @app.get(

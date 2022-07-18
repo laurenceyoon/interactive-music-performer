@@ -48,6 +48,11 @@ def play_piece_to_outport(piece: Piece):
     print(f"* Playing piece({piece.title}) Ended.")
 
 
+def set_playback_speed(speed: float):
+    print(f"Set playback speed to {speed}")
+    midi_port.speed = speed
+
+
 def all_stop_playing():
     print("############ all stop playing ############")
     midi_port.panic()
