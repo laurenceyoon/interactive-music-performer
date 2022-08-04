@@ -27,7 +27,7 @@ class MidiPort:
         for msg in midi:
             if self.is_running:
                 if not msg.is_meta:
-                    time.sleep(msg.time * self.speed)
+                    time.sleep(msg.time * 1/self.speed)
                     self.outport.send(msg)
             else:
                 print("Stop sending MIDI messages!")

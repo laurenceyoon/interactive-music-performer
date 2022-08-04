@@ -1,43 +1,14 @@
 import asyncio
-import time
-from collections import OrderedDict
-from pathlib import Path
-from matplotlib import interactive
 import matplotlib.pyplot as plt
 
-import librosa
-import mido
 import numpy as np
 
-from ..config import HOP_LENGTH, N_FFT, SAMPLE_RATE
-from ..models import Piece, Schedule, SubPiece
+from ..models import Piece, Schedule
 from .midiport import midi_port
-from .online_dtw import OnlineTimeWarping
 from .stream_processor import sp
 from .interactive_performer import InteractivePerformer
-from .utils import get_audio_path_from_midi_path, get_midi_from_piece
+from .utils import get_midi_from_piece
 
-absolute_measures = [
-    0.0,
-    0.5,
-    2.0,
-    3.5,
-    5.0,
-    6.5,
-    8.0,
-    9.5,
-    11.0,
-    12.5,
-    14.0,
-    15.0,
-    17.0,
-    18.5,
-    20.0,
-    21.5,
-    23.0,
-    24.5,
-    26.0,
-]
 interactive_performer = None
 
 
@@ -49,7 +20,7 @@ def play_piece_to_outport(piece: Piece):
 
 
 def set_playback_speed(speed: float):
-    print(f"Set playback speed to {speed}")
+    print(f"############ Set playback speed to {speed} ############")
     midi_port.speed = speed
 
 

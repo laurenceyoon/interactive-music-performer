@@ -30,7 +30,7 @@ def get_db():
         db.close()
 
 
-@app.get(
+@app.patch(
     "/pieces/{piece_id}/play", status_code=HTTPStatus.ACCEPTED, tags=["Interactive API"]
 )
 def play_piece(
@@ -41,7 +41,7 @@ def play_piece(
     return {"response": f"playing title({db_piece.title}) on the background"}
 
 
-@app.get(
+@app.patch(
     "/pieces/{piece_id}/perform",
     status_code=HTTPStatus.ACCEPTED,
     tags=["Interactive API"],
@@ -59,20 +59,20 @@ def perform_piece(
     return {"response": f"following title({piece.title})"}
 
 
-@app.get("/stop", tags=["Interactive API"])
+@app.patch("/stop", tags=["Interactive API"])
 def stop_all_tasks():
     all_stop_playing()
     close_stream()
     return {"response": "all stop playing & recording"}
 
 
-@app.get("/speed", status_code=HTTPStatus.ACCEPTED, tags=["Interactive API"])
-def set_speed(speed: float = 1):
+@app.patch("/speed", status_code=HTTPStatus.ACCEPTED, tags=["Interactive API"])
+def update_speed(speed: float):
     set_playback_speed(speed)
-    return {"response": f"set playback speed to {speed}"}
+    return {"response": f"update playback speed to {speed}"}
 
 
-@app.get(
+@app.patch(
     "/subpieces/{subpiece_id}/play",
     status_code=HTTPStatus.ACCEPTED,
     tags=["Interactive API"],
