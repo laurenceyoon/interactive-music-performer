@@ -2,6 +2,7 @@ import asyncio
 from http import HTTPStatus
 
 from fastapi import BackgroundTasks, Depends, FastAPI
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -146,6 +147,11 @@ def read_subpieces(skip: int = 0, limit: int = 100, db: Session = Depends(get_db
 )
 def read_subpiece(subpiece_id: int, db: Session = Depends(get_db)):
     return crud.get_subpiece(db, subpiece_id=subpiece_id)
+
+
+@app.get("/", tags=["Basic API"])
+def root():
+    return RedirectResponse("/docs")
 
 
 @app.get("/test", tags=["Test"])
