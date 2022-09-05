@@ -4,14 +4,14 @@ from collections import deque
 import librosa
 from transitions import Machine
 
-from ..config import HUMAN_PLAYER
 from ..models import Piece, SubPiece
 from .dto import Schedule
 from .utils import get_audio_path_from_midi_path, get_midi_from_piece
 from .online_dtw import OnlineTimeWarping
 from .midiport import midi_port
 from .stream_processor import sp
-from ..config import HOP_LENGTH, SAMPLE_RATE, FRAME_RATE
+from ..config import HOP_LENGTH, SAMPLE_RATE, FRAME_RATE, HUMAN_PLAYER
+from ..redis import redis_client
 
 
 class InteractivePerformer:
@@ -119,6 +119,7 @@ class InteractivePerformer:
 
     def start_playing(self):
         print("\n🎹 switch player to VirtuosoNet 🤖 🎹")
+        print(f"Playback Speed: {float(redis_client.get('speed'))}")
         print(f"remaining schedules count: {len(self.schedules)}")
         self.force_quit_flag = False
         print(f"start_playing!, current subpiece: {self.current_subpiece}")

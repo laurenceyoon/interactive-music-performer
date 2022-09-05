@@ -16,6 +16,7 @@ from .core.helpers import (
     set_playback_speed,
 )
 from .database import SessionLocal, engine
+from .redis import redis_client
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -35,19 +36,24 @@ def get_db():
     "/pieces/{piece_id}/play", status_code=HTTPStatus.ACCEPTED, tags=["Interactive API"]
 )
 def play_piece(
-    piece_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+    piece_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    speed: float = 1,
 ):
+    redis_client.set("speed", speed)
+    print(f"~~~~~~~~~~~~~~redis set speed to {speed}~~~~~~~~~~~~~~~~")
     db_piece = crud.get_piece_by_id(db, piece_id=piece_id)
     background_tasks.add_task(play_piece_to_outport, piece=db_piece)
     return {"response": f"playing title({db_piece.title}) on the background"}
 
 
 @app.patch(
-    "/pieces/{piece_id}/perform",
+    "/pieces/{piece_id}/relay-perform",
     status_code=HTTPStatus.ACCEPTED,
     tags=["Interactive API"],
 )
-def perform_piece(
+def relay_perform_piece(
     piece_id: int,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
@@ -79,8 +85,12 @@ def update_speed(speed: float):
     tags=["Interactive API"],
 )
 def play_subpiece(
-    subpiece_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+    subpiece_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    speed: float = 1,
 ):
+    redis_client.set("speed", speed)
     db_subpiece = crud.get_subpiece(db, subpiece_id)
     background_tasks.add_task(play_piece_to_outport, piece=db_subpiece)
     return {"response": f"playing title({db_subpiece}) on the background"}
@@ -165,3 +175,10 @@ async def async_test():
     print("test API for asynchronous request - sleep for 0.1 sec...")
     await asyncio.sleep(0.1)
     return {"async hello": "world"}
+
+
+@app.get("/redis-test", tags=["Test"])
+def test(value: float = 1):
+    redis_client.set("key", value)
+    print("test API for redis")
+    return {"key": value}
